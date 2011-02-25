@@ -1,4 +1,3 @@
-$Id$
 
 The Previewable Email Template (PET) module lets you create email templates,
 with token substitution, which can be previewed by the user before sending.
