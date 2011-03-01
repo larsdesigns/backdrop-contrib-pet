@@ -53,7 +53,7 @@ function theme_pet_admin_page($pets) {
 function pet_get_pets() {
   $pets = array();
   
-  $result = db_query("SELECT * FROM {pets}");
+  $result = db_query("SELECT * FROM {pets} ORDER BY name");
   while ($pet = db_fetch_object($result)) {
     $pets[] = $pet;
   }
@@ -150,7 +150,7 @@ function pet_add_form(&$form_state, $name = NULL) {
 }
 
 /**
- * Validate the PET.  findme - could do better callback and token type validation
+ * Validate the PET.  Could do better callback and token type validation
  */
 function pet_add_form_validate($form, &$form_state) {
   pet_validate_name($form_state['values']['name'], $form_state);
