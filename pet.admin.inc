@@ -48,20 +48,6 @@ function theme_pet_admin_page($pets) {
 }
 
 /**
- * Return all PETs.
- */
-function pet_get_pets() {
-  $pets = array();
-  
-  $result = db_query("SELECT * FROM {pets} ORDER BY name");
-  while ($pet = db_fetch_object($result)) {
-    $pets[] = $pet;
-  }
-  
-  return $pets;
-}
-
-/**
  * Add/Edit PET page.
  */
 function pet_add_form(&$form_state, $name = NULL) {
@@ -412,7 +398,12 @@ function pet_user_form_back($form, &$form_state) {
 function pet_make_preview(&$form_state) {
   $recipients = $form_state['storage']['recipients'];
   list($uid, $mail) = explode('|', $recipients[0]);
-  $subs = pet_substitutions($form_state['storage']['pet'], $form_state['storage']['nid'], $uid);
+  $params = array(
+    'pet_uid' => $uid,
+    'pet_nid' => $form_state['storage']['nid'],
+  );
+  $subs = pet_substitutions($form_state['storage']['pet'], $params);
+  
   $form_state['storage']['subject_preview'] = token_replace_multiple($form_state['values']['subject'], $subs);
   $form_state['storage']['body_preview'] = token_replace_multiple($form_state['values']['body'], $subs);
 }
