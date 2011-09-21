@@ -3,3 +3,4 @@ description = Configure emails with token support and preview them before sendin
 dependencies[] = token
 core = 6.x
 package = Email
+

@@ -1,4 +1,3 @@
-
 The Previewable Email Template (PET) module lets you create email templates,
 with token substitution, which can be previewed by the user before sending.
 The emails can be sent to one or many email addresses in a flexible way,
@@ -42,8 +41,8 @@ Configure (create, edit, delete) the templates for your site at Administer -> Si
   other token types, including comments.
 
 
-Usage
--------
+Usage Via Links
+---------------
 To invoke a PET, use the path /pet/<pet_name>.  In this simple form, with no arguments provided, the user
 will be required to enter a single email address.  No user or node substitution will be available, although
 global substitutions will be made.
@@ -57,6 +56,27 @@ uid is present, token substitution will be done.  If there is no uid, leave it o
 
 To invoke a PET with node substitution, add the node id to the arguments, e.g. /pet/<pet_name>?uid=17&nid=244.
 Token substitution will be done on both user 17 and node 244.
+
+
+Usage From Code
+---------------
+pet_send_mail() sends email to multiple recipients.  pet_send_one_mail() sends email to one recipient.  See
+these function headers for documentation.
+
+
+CCK & Views Integration
+-------
+Supports the CCK field type "petreference".  See petreference module.
+
+Basic Views support.
+
+
+Ubercart Integration
+-------
+PET offers a conditional action which lets you send PET-based emails instead of Ubercart action emails.
+The Ubercart order tokens are available to your templates.  Using PETs in this way can be useful if
+a) you want a unified entry point to all your configurable email templates, or b) you send the PET email
+outside the context of an Ubercart order as well as within one, and don't want to replicate your templates.
 
 
 Preview
