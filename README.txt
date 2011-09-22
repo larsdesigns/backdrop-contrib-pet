@@ -43,18 +43,18 @@ Configure (create, edit, delete) the templates for your site at Administer -> Si
 
 Usage Via Links
 ---------------
-To invoke a PET, use the path /pet/<pet_name>.  In this simple form, with no arguments provided, the user
+To invoke a PET, use the path /pet/[pet_name].  In this simple form, with no arguments provided, the user
 will be required to enter a single email address.  No user or node substitution will be available, although
 global substitutions will be made.
 
-To invoke a PET for a single user include the uid in the arguments, e.g. /pet/<pet_name>?uid=17.  This will
+To invoke a PET for a single user include the uid in the arguments, e.g. /pet/[pet_name]?uid=17.  This will
 provide token substitution for user 17.
 
-To invoke a PET for a custom list of users, set uid to 0 in the arguments, e.g. /pet/<pet_name>?uid=0.  The
-recipient callback function will be invoked to return an array of users in the form <uid>|<email>.  If the 
+To invoke a PET for a custom list of users, set uid to 0 in the arguments, e.g. /pet/[pet_name]?uid=0.  The
+recipient callback function will be invoked to return an array of users in the form [uid]|[email].  If the 
 uid is present, token substitution will be done.  If there is no uid, leave it out (but leave the pipe in).
 
-To invoke a PET with node substitution, add the node id to the arguments, e.g. /pet/<pet_name>?uid=17&nid=244.
+To invoke a PET with node substitution, add the node id to the arguments, e.g. /pet/[pet_name]?uid=17&nid=244.
 Token substitution will be done on both user 17 and node 244.
 
 
@@ -64,7 +64,7 @@ pet_send_mail() sends email to multiple recipients.  pet_send_one_mail() sends e
 these function headers for documentation.
 
 
-CCK & Views Integration
+CCK and Views Integration
 -------
 Supports the CCK field type "PET Reference", which is available when you enable the petreference module.  This
 field lets you stores templates specific to certain content with that content.
