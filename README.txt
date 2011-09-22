@@ -66,9 +66,11 @@ these function headers for documentation.
 
 CCK & Views Integration
 -------
-Supports the CCK field type "petreference".  See petreference module.
+Supports the CCK field type "PET Reference", which is available when you enable the petreference module.  This
+field lets you stores templates specific to certain content with that content.
 
-Basic Views support.
+The petreference module also includes basic Views support, including a Views type PET, which can be used to
+create Views of PETs, and support for displaying PET Reference fields in Node type Views.
 
 
 Ubercart Integration

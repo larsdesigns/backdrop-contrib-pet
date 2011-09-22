@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 /**
  * @file
@@ -55,7 +54,7 @@ function pet_views_data() {
       'base' => array(
         'field' => 'pid',
         'title' => t('PET'),
-        'help' => t('PET is for previewable email template.'),
+        'help' => t('PETS are Previewable Email Templates.'),
         'weight' => 0,
       ),
     ),
