@@ -223,7 +223,6 @@ function pet_send_one_mail($pet, $params) {
   $substitutions = pet_substitutions($pet, $params);
   $params['subject'] = token_replace_multiple($pet->subject, $substitutions);
   $params['body'] = token_replace_multiple($pet->body, $substitutions);
-  flog_it('calling drupal_mail');
   drupal_mail('pet', $pet->name, $params['pet_to'], language_default(), $params, $params['pet_from']);
 }
 
