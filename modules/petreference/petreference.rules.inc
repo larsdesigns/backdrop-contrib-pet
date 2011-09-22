@@ -1,5 +1,4 @@
 <?php
-// $Id: petreference.rules.inc,v 1.1.2.2 2008/10/06 15:02:03 karens Exp $
 
 /**
  * @file
@@ -16,7 +15,7 @@ function petreference_rules_action_info() {
     'arguments' => array(
       'pet' => array(
         'type' => 'pet',
-        'label' => t('Content containing the pet reference field'),
+        'label' => t('Content containing the PET Reference field'),
       ),
     ),
     'new variables' => array(

@@ -1,5 +1,4 @@
 <?php
-// $Id: petreference.module $
 
 /**
  * @file
@@ -62,7 +61,7 @@ function petreference_theme() {
 function petreference_field_info() {
   return array(
     'petreference' => array(
-      'label' => t('Pet reference'),
+      'label' => t('PET Reference'),
       'description' => t('Store the ID of a related pet template as an integer value.'),
 //      'content_icon' => 'icon_content_noderef.png',
     ),
