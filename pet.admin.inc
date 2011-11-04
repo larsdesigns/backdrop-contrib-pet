@@ -91,7 +91,7 @@ function pet_add_form(&$form_state, $name = NULL) {
     '#maxlength' => 255,
     '#required' => TRUE,
   );
-  $form['body'] = array(
+  $form['mail_body'] = array(
     '#type' => 'textarea',
     '#title' => t('Body'),
     '#default_value' => $pet->body,
@@ -163,15 +163,19 @@ function pet_validate_name($name, $form_state) {
  * Update/create a PET.
  */
 function pet_add_form_submit($form, &$form_state) {
-  if (empty($form_state['values']['pid'])) {
-    drupal_write_record('pets', $form_state['values']);
-    drupal_set_message(t('Template %name has been added.', array('%name' => $form_state['values']['name'])));
-    watchdog('pet', 'Template %name has been added.', array('%name' => $form_state['values']['name']), WATCHDOG_NOTICE);
+  $values = $form_state['values'];
+  $values['body'] = $values['mail_body'];
+  unset($values['mail_body']);
+  
+  if (empty($values['pid'])) {
+    drupal_write_record('pets', $values);
+    drupal_set_message(t('Template %name has been added.', array('%name' => $values['name'])));
+    watchdog('pet', 'Template %name has been added.', array('%name' => $values['name']), WATCHDOG_NOTICE);
   }
   else {    
-    drupal_write_record('pets', $form_state['values'], 'pid');
-    drupal_set_message(t('Template %name has been updated.', array('%name' => $form_state['values']['name'])));
-    watchdog('pet', 'Template %name has been updated.', array('%name' => $form_state['values']['name']), WATCHDOG_NOTICE);
+    drupal_write_record('pets', $values, 'pid');
+    drupal_set_message(t('Template %name has been updated.', array('%name' => $values['name'])));
+    watchdog('pet', 'Template %name has been updated.', array('%name' => $values['name']), WATCHDOG_NOTICE);
   }
   
   $form_state['redirect'] = 'admin/build/pets';
@@ -254,10 +258,10 @@ function pet_user_form(&$form_state, $pet) {
         '#default_value' => $form_state['storage']['subject'] ? $form_state['storage']['subject'] : $pet->subject,
         '#required' => TRUE,
       );
-      $form['body'] = array(
+      $form['mail_body'] = array(
         '#type' => 'textarea',
         '#title' => t('Body'),
-        '#default_value' => $form_state['storage']['body'] ? $form_state['storage']['body'] : $pet->body,
+        '#default_value' => $form_state['storage']['mail_body'] ? $form_state['storage']['mail_body'] : $pet->body,
         '#required' => TRUE,
         '#rows' => 15,
         '#description' => t('Review and edit template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/build/pets/edit/' . $pet->name))),
@@ -297,7 +301,7 @@ function pet_user_form(&$form_state, $pet) {
         '#value' => $form_state['storage']['subject_preview'],
         '#disabled' => TRUE,
       );
-      $form['body'] = array(
+      $form['mail_body'] = array(
         '#type' => 'textarea',
         '#title' => t('Body'),
         '#rows' => 15,
@@ -368,7 +372,7 @@ function pet_user_form_submit($form, &$form_state) {
       $form_state['storage']['mail'] = $form_state['values']['mail'];
       $form_state['storage']['recipients'] = pet_recipients($form_state);
       $form_state['storage']['subject'] = $form_state['values']['subject'];
-      $form_state['storage']['body'] = $form_state['values']['body'];
+      $form_state['storage']['mail_body'] = $form_state['values']['mail_body'];
       pet_make_preview($form_state);
       break;
       
@@ -377,7 +381,7 @@ function pet_user_form_submit($form, &$form_state) {
       $recipients = $form_state['storage']['recipients'];
       $nid = $form_state['storage']['nid'];
       $subject = $form_state['storage']['subject'];
-      $body = $form_state['storage']['body'];
+      $body = $form_state['storage']['mail_body'];
       pet_send_mail($name, $recipients, $nid, $subject, $body);
       break;
   }
@@ -405,7 +409,7 @@ function pet_make_preview(&$form_state) {
   $subs = pet_substitutions($form_state['storage']['pet'], $params);
   
   $form_state['storage']['subject_preview'] = token_replace_multiple($form_state['values']['subject'], $subs);
-  $form_state['storage']['body_preview'] = token_replace_multiple($form_state['values']['body'], $subs);
+  $form_state['storage']['body_preview'] = token_replace_multiple($form_state['values']['mail_body'], $subs);
 }
 
 /**
