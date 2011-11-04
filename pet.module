@@ -162,7 +162,7 @@ function pet_send_mail($name, $recipients, $nid = NULL, $subject = NULL, $body =
     return;
   }
   if (!is_array($recipients) || count($recipients) < 1) {
-    watchdog('pet', 'At least one recipient must be provided for PET %name.', array('%name' => $name), WATCHDOG_ERROR);
+    watchdog('pet', 'At least one recipient must be provided for PET %name.', array('%name' => $name), WATCHDOG_NOTICE);
     return;
   }
   
