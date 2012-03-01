@@ -23,20 +23,20 @@ Configuration
 -------------
 Configure (create, edit, delete) the templates for your site at Administer -> Site Building -> Previewable email templates (/admin/build/pets)
   
-  Name - Machine name for the template. This is used when adding the template to your code.
+  Name (required) - Machine name for the template. This is useful if you want to refer to your template from code.
   
-  Title - A descriptive title for the template.
+  Title (required) - A descriptive title for the template.  Neither this nor Name appear anywhere in the email itself.
   
-  Subject - The email subject.  May contain tokens (see below).
+  Subject (required) - The email subject.  May contain tokens for value substitution (see below).
   
-  Body - The email body.  May contain tokens (see below).
+  Body (optional but obviously common) - The email body.  Like Subject, may contain tokens (see below).
   
-  Recipient callback - The name of a function which is called to retrieve a list of email recipients, if
+  Recipient callback (optional) - The name of a function which is called to retrieve a list of email recipients, if
   the uid argument is 0 (not missing, but the number 0).  This is a function that you provide.  If there
   is a nid argument, the node is loaded and passed to this function.
   
-  Custom tokens - The standard 'node', 'user', and 'global' tokens are provided.  Replacements are made for
-  'node' and 'user' if the nid and uid arguments, respectively, are non-empty.  If you have custom token
+  Custom tokens (optional) - The standard 'node', 'user', and 'global' tokens are provided.  Replacements are made for
+  'node' and 'user' if the nid and uid arguments, respectively, are positive integers.  If you have custom token
   handlers which expect an object of type 'node' or 'user', list them here.  TODO: add general support for 
   other token types, including comments.
 

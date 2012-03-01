@@ -316,11 +316,6 @@ function pet_ca_action() {
 /**
  * Sends an email related to an Ubercart order, triggered by a conditional action.
  *
- * It would be nice if this function called pet_send_mail() instead of calling drupal_mail()
- * directly, but without some refactoring this isn't possible because PET assumes that every
- * email sent has user tokens based on the recipient user, which doesn't match the model
- * here, where the recipient might also include, for example, the store administrator.
- *
  * @see pet_action_email_form()
  */
 function pet_action_email($order, $settings) {
