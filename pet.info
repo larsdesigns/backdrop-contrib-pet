@@ -1,6 +1,5 @@
 name = Previewable E-mail Templates
-description = Configure emails with token support and preview them before sending.
+description = Create email templates with token support and preview them before sending.
 dependencies[] = token
 core = 6.x
-package = Email
-
+package = Mail

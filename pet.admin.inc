@@ -10,6 +10,7 @@
  */
 function pet_admin_page() {
   $pets = pet_get_pets();
+  flog_it($pets);
   return theme('pet_admin_page', $pets);
 }
 
@@ -29,8 +30,6 @@ function theme_pet_admin_page($pets) {
     $rows[] = array(
       l($pet->name, 'pet/' . $pet->name),
       $pet->title,
-      $pet->recipient_callback,
-      $pet->object_types,
       $ops,
     );
   }
@@ -41,7 +40,11 @@ function theme_pet_admin_page($pets) {
     );
   }
 
-  $header = array(t('Name'), t('Title'), t('Recipient callback'), t('Custom tokens'), t('Operations'));
+  $header = array(
+    t('Name'), 
+    t('Title'), 
+    t('Operations')
+  );
   $output .= theme('table', $header, $rows);
 
   return $output;
@@ -99,11 +102,28 @@ function pet_add_form(&$form_state, $name = NULL) {
   );
   $form['advanced'] = array(
     '#type' => 'fieldset',
-    '#title' => t('Advanced settings'),
+    '#title' => t('Additional options'),
     '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
+    '#collapsed' => FALSE,
     '#access' => user_access('administer previewable email templates'),
   );
+  $form['advanced']['separate_to'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Send separate emails'),
+    '#default_value' => isset($pet->separate_to) ? $pet->separate_to : 1,
+    '#description' => t('Default behavior is to send a separate email to each To: address. This ensures privacy by default. Unchecking this box will cause a single email to be sent to each To: address, allowing people to see each other\'s email address. Regardless of this setting, any Cc: and Bcc: recipients will receive all emails sent, so exercise caution to avoid redundant sends.'),
+  );
+  $form['advanced']['from_override'] = array(
+    '#type' => 'textfield',
+    '#title' => t('From override'),
+    '#default_value' => $pet->from_override,
+    '#description' => t('By default, the From: address is the site address, which is %site_mail and which is configurable on the core <a href="@site_url">site information page</a>. You may specify a different From: address here, which will override the system default for this PET.', array('%site_mail' => variable_get('site_mail', ini_get('sendmail_from')), '@site_url' => url('admin/settings/site-information'))),
+    '#maxlength' => 255,
+    '#required' => FALSE,
+  );
+  
+  
+  
   $form['advanced']['recipient_callback'] = array(
     '#type' => 'textfield',
     '#title' => t('Recipient callback'),
@@ -140,6 +160,12 @@ function pet_add_form(&$form_state, $name = NULL) {
  */
 function pet_add_form_validate($form, &$form_state) {
   pet_validate_name($form_state['values']['name'], $form_state);
+  
+  if (!empty($form_state['values']['from_override'])) {
+    if (!valid_email_address($form_state['values']['from_override'])) {
+      form_set_error('from_override', t('From address is not a valid email address.'));
+    }
+  }
 }
 
 /**
@@ -159,6 +185,7 @@ function pet_validate_name($name, $form_state) {
     }
   }
 }
+
 /**
  * Update/create a PET.
  */

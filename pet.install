@@ -95,6 +95,17 @@ function pet_schema() {
         'not null' => FALSE,
         'default' => '',
       ),
+      'from_override' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'separate_to' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+      ),
     ),
     'primary key' => array('pid'),
     'unique keys' => array(
@@ -103,4 +114,35 @@ function pet_schema() {
   );
 
   return $schema;
+}
+
+/**
+ * Add 'from_override' and 'separate_to' columns to {pets}.
+ */
+function pet_update_6001() {
+  $ret = array();
+
+  db_add_field(
+    $ret, 
+    'pets', 
+    'from_override', 
+    array(
+    'type' => 'varchar',
+    'length' => '255',
+    'not null' => FALSE,
+    'default' => '',
+    )
+  );
+  db_add_field(
+    $ret, 
+    'pets', 
+    'separate_to', 
+    array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 1,
+    )
+  );
+
+  return $ret;
 }
