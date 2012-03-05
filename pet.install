@@ -84,10 +84,12 @@ function pet_schema() {
       'body' => array(
         'type' => 'text',
         'not null' => FALSE,
+        'default' => '',
       ),
       'object_types' => array(
         'type' => 'text',
         'not null' => FALSE,
+        'default' => '',
       ),
       'recipient_callback' => array(
         'type' => 'varchar',
@@ -101,10 +103,17 @@ function pet_schema() {
         'not null' => FALSE,
         'default' => '',
       ),
-      'separate_to' => array(
-        'type' => 'int',
-        'not null' => TRUE,
-        'default' => 1,
+      'cc_default' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'size' => 'medium',
+        'default' => '',
+      ),
+      'bcc_default' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'size' => 'medium',
+        'default' => '',
       ),
     ),
     'primary key' => array('pid'),
@@ -117,7 +126,7 @@ function pet_schema() {
 }
 
 /**
- * Add 'from_override' and 'separate_to' columns to {pets}.
+ * Add new columns to {pets}.
  */
 function pet_update_6001() {
   $ret = array();
@@ -133,14 +142,28 @@ function pet_update_6001() {
     'default' => '',
     )
   );
+
   db_add_field(
     $ret, 
     'pets', 
-    'separate_to', 
+    'cc_default', 
     array(
-      'type' => 'int',
-      'not null' => TRUE,
-      'default' => 1,
+      'type' => 'text',
+      'not null' => FALSE,
+      'size' => 'medium',
+      'default' => '',
+    )
+  );
+
+  db_add_field(
+    $ret, 
+    'pets', 
+    'bcc_default', 
+    array(
+      'type' => 'text',
+      'not null' => FALSE,
+      'size' => 'medium',
+      'default' => '',
     )
   );
 

@@ -10,7 +10,6 @@
  */
 function pet_admin_page() {
   $pets = pet_get_pets();
-  flog_it($pets);
   return theme('pet_admin_page', $pets);
 }
 
@@ -107,12 +106,6 @@ function pet_add_form(&$form_state, $name = NULL) {
     '#collapsed' => FALSE,
     '#access' => user_access('administer previewable email templates'),
   );
-  $form['advanced']['separate_to'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Send separate emails'),
-    '#default_value' => isset($pet->separate_to) ? $pet->separate_to : 1,
-    '#description' => t('Default behavior is to send a separate email to each To: address. This ensures privacy by default. Unchecking this box will cause a single email to be sent to each To: address, allowing people to see each other\'s email address. Regardless of this setting, any Cc: and Bcc: recipients will receive all emails sent, so exercise caution to avoid redundant sends.'),
-  );
   $form['advanced']['from_override'] = array(
     '#type' => 'textfield',
     '#title' => t('From override'),
@@ -121,9 +114,22 @@ function pet_add_form(&$form_state, $name = NULL) {
     '#maxlength' => 255,
     '#required' => FALSE,
   );
-  
-  
-  
+  $form['advanced']['cc_default'] = array(
+    '#type' => 'textarea',
+    '#title' => t('CC default'),
+    '#rows' => 3,
+    '#default_value' => $pet->cc_default,
+    '#description' => t('Emails to be copied by default for each mail sent to recipient. Enter emails separated by lines or commas.'),
+    '#required' => FALSE,
+  );
+  $form['advanced']['bcc_default'] = array(
+    '#type' => 'textarea',
+    '#title' => t('BCC default'),
+    '#rows' => 3,
+    '#default_value' => $pet->bcc_default,
+    '#description' => t('Emails to be blind copied by default for each mail sent to recipient. Enter emails separated by lines or commas.'),
+    '#required' => FALSE,
+  );
   $form['advanced']['recipient_callback'] = array(
     '#type' => 'textfield',
     '#title' => t('Recipient callback'),
@@ -165,6 +171,16 @@ function pet_add_form_validate($form, &$form_state) {
     if (!valid_email_address($form_state['values']['from_override'])) {
       form_set_error('from_override', t('From address is not a valid email address.'));
     }
+  }
+  
+  $errors = pet_validate_emails($form_state['values']['cc_default']);
+  if (!empty($errors)) {
+    form_set_error('cc_default', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
+  }
+  
+  $errors = pet_validate_emails($form_state['values']['bcc_default']);
+  if (!empty($errors)) {
+    form_set_error('bcc_default', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
   }
 }
 
@@ -259,10 +275,6 @@ function pet_user_form(&$form_state, $pet) {
     pet_isset_or($_REQUEST['uid']) === '0' // backward compatibility
   );
   
-  flog_it($nid, '$nid');
-  flog_it($uid, '$uid');
-  flog_it($recipient_callback, '$recipient_callback');
-
   switch ($step) {
     case 1:
       if ($recipient_callback) {
@@ -287,6 +299,26 @@ function pet_user_form(&$form_state, $pet) {
         '#default_value' => $default_mail,
         '#description' => t('Enter the recipients separated by lines or commas.'),
         '#disabled' => $recipient_callback,
+      );
+      $form['copies'] = array(
+        '#title' => t('Copies'),
+        '#type' => 'fieldset',
+        '#collapsible' => TRUE,
+        '#collapsed' => empty($pet->cc_default) && empty($pet->bcc_default),
+      );
+      $form['copies']['cc'] = array(
+        '#title' => t('Cc'),
+        '#type' => 'textarea',
+        '#rows' => 3,
+        '#default_value' => $pet->cc_default,
+        '#description' => t('Enter any copied emails separated by lines or commas.'),
+      );
+      $form['copies']['bcc'] = array(
+        '#title' => t('Bcc'),
+        '#type' => 'textarea',
+        '#rows' => 3,
+        '#default_value' => $pet->bcc_default,
+        '#description' => t('Enter any blind copied emails separated by lines or commas.'),
       );
       $form['subject'] = array(
         '#type' => 'textfield',
@@ -325,11 +357,29 @@ function pet_user_form(&$form_state, $pet) {
       );
       $form['recipients'] = array(
         '#type' => 'textarea',
-        '#title' => t('Recipients'),
+        '#title' => t('To'),
         '#rows' => 4,
         '#value' => pet_recipients_formatted($form_state['storage']['recipients']),
         '#disabled' => TRUE,
       );
+      if ($form_state['values']['cc']) {
+        $form['cc'] = array(
+          '#type' => 'textarea',
+          '#title' => t('CC'),
+          '#rows' => 4,
+          '#value' => $form_state['values']['cc'],
+          '#disabled' => TRUE,
+        );
+      }
+      if ($form_state['values']['bcc']) {
+        $form['bcc'] = array(
+          '#type' => 'textarea',
+          '#title' => t('BCC'),
+          '#rows' => 4,
+          '#value' => $form_state['values']['bcc'],
+          '#disabled' => TRUE,
+        );
+      }
       $form['subject'] = array(
         '#type' => 'textfield',
         '#title' => t('Subject'),
@@ -381,28 +431,23 @@ function pet_user_form_validate($form, &$form_state) {
   $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
 
   if ($step == 1) {
-    $recipients = pet_recipients($form_state);
-  }
-}
-
-/**
- * Validate PET form.
- */
-function findmepet_user_form_validate($form, &$form_state) {
-  $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
-
-  if ($step == 1) {
-    if ($form_state['storage']['recipient_callback']) {
-      $recipients = pet_recipients($form_state);
-      if (!is_array($recipients)) {
-        form_set_error('pet', t('Callback is not returning an array of recipients.'));
-      }
-      elseif (count($recipients) < 1) {
-        form_set_error('pet', t('There are no recipients for this email.'));
-      }
+    $errors = pet_validate_recipients($form_state, $recipients);
+    if (!empty($errors)) {
+      form_set_error('recipients', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
     }
-    elseif (!valid_email_address($form_state['values']['mail'])) {
-      form_set_error('mail', t('You must enter a valid e-mail address.'));
+    else {
+      // Save recipients to avoid redundant processing on form submit
+      $form_state['storage']['recipients'] = $recipients;
+    }
+    
+    $errors = pet_validate_emails($form_state['values']['cc']);
+    if (!empty($errors)) {
+      form_set_error('cc', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
+    }
+
+    $errors = pet_validate_emails($form_state['values']['bcc']);
+    if (!empty($errors)) {
+      form_set_error('bcc', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
     }
   }
 }
@@ -417,7 +462,6 @@ function pet_user_form_submit($form, &$form_state) {
   switch ($step) {
     case 1:
       $form_state['storage']['mail'] = $form_state['values']['mail'];
-      $form_state['storage']['recipients'] = pet_recipients($form_state);
       $form_state['storage']['subject'] = $form_state['values']['subject'];
       $form_state['storage']['mail_body'] = $form_state['values']['mail_body'];
       pet_make_preview($form_state);
@@ -429,7 +473,10 @@ function pet_user_form_submit($form, &$form_state) {
       $nid = $form_state['storage']['nid'];
       $subject = $form_state['storage']['subject'];
       $body = $form_state['storage']['mail_body'];
-      pet_send_mail($name, $recipients, $nid, $subject, $body);
+      $from = NULL;  // use PET or default setting
+      $cc = $form_state['values']['cc'];
+      $bcc = $form_state['values']['bcc'];
+      pet_send_mail($name, $recipients, $nid, $subject, $body, $from, $cc, $bcc);
       break;
   }
   
@@ -447,10 +494,8 @@ function pet_user_form_back($form, &$form_state) {
  * Generate a preview of the tokenized email for the first in the list.
  */
 function pet_make_preview(&$form_state) {
-  $recipients = $form_state['storage']['recipients'];
-  list($uid, $mail) = explode('|', $recipients[0]);
   $params = array(
-    'pet_uid' => $uid,
+    'pet_uid' => $form_state['storage']['recipients'][0]['uid'],
     'pet_nid' => $form_state['storage']['nid'],
   );
   $subs = pet_substitutions($form_state['storage']['pet'], $params);
@@ -460,48 +505,45 @@ function pet_make_preview(&$form_state) {
 }
 
 /**
- * Return an array of email recipients
+ * Validate existence of a non-empty recipient list free of email errors.
  */
-function pet_recipients($form_state) {
+function pet_validate_recipients($form_state, &$recipients) {
+  $errors = array();
+  $recipients = array();
+  
   if ($form_state['storage']['recipient_callback']) {
-    $recipients = pet_callback_recipients($form_state);
-    if (!is_array($recipients)) {
-      form_set_error('recipients', t('There is no recipient callback defined for this template.'));
-      return NULL;
+    // Get recipients from callback
+    $mails = pet_callback_recipients($form_state);
+    if (!is_array($mails)) {
+      $errors[] = t('There is no recipient callback defined for this template or it is not returning an array.');
+      return $errors;
     }
   }
   else {
-    flog_it($form_state['values']['recipients'], 'in');
-    $recipients = preg_split('/[\n\r, ]/', $form_state['values']['recipients'], -1, PREG_SPLIT_NO_EMPTY); 
-    //findme
-    flog_it($recipients, 'split');
+    // Get recipients from form field
+    $mails = pet_parse_mails($form_state['values']['recipients']);
   }
   
-  foreach ($recipients as $recipient) {
-    if (!valid_email_address($recipient)) {
-      form_set_error('recipients', t('Invalid email address found: %email.', array('%email' => $recipient)));
+  // Validate and build recipient array with uid on the fly
+  foreach ($mails as $mail) {
+    if (!valid_email_address($mail)) {
+      $errors[] = t('Invalid email address found: %mail.', array('%mail' => $mail));
+    }
+    else {
+      $recipients[] = array('mail' => $mail, 'uid' => pet_lookup_uid($mail));
     }
   }
   
-  // findme - patch in uids?
-  return $recipients;
-}
-
-/**
- * Return an array of email recipients
- */
-function findmepet_recipients($form_state) {
-  $uid = $form_state['storage']['uid'];
-    
-  if ($uid == '0') {
-    return pet_callback_recipients($form_state);
+  // Check for no recipients
+  if (empty($errors) && count($recipients) < 1) {
+    $errors[] = t('There are no recipients for this email.');
   }
   
-  return array($uid . '|' . $form_state['storage']['mail']);
+  return $errors;
 }
 
 /**
- * Return an array of email recipients provided by a callback function
+ * Return an array of email recipients provided by a callback function.
  */
 function pet_callback_recipients($form_state) {
   $nid = $form_state['storage']['nid'];
@@ -517,9 +559,7 @@ function pet_callback_recipients($form_state) {
       if (isset($recipients) && is_array($recipients)) {
         $new_recipients = array();
         foreach ($recipients as $recipient) {
-          flog_it($recipient, 'was');
           $recipient = preg_replace('/^[0-9]*\|/', '', $recipient);
-          flog_it($recipient, 'now');
           $new_recipients[] = $recipient;
         }
         return $new_recipients;
@@ -536,9 +576,8 @@ function pet_callback_recipients($form_state) {
 function pet_recipients_formatted($recipients) {
   if (is_array($recipients)) {
     foreach ($recipients as $recipient) {
-      list($uid, $mail) = explode('|', $recipient);
-      $output .= $mail;
-      $output .= $uid ? t(' (user @uid)', array('@uid' => $uid)) : t(' (no user id)');
+      $output .= $recipient['mail'];
+      $output .= $recipient['uid'] ? t(' (user @uid)', array('@uid' => $recipient['uid'])) : t(' (no user id)');
       $output .= "\n";
     }
     return $output;
@@ -571,10 +610,21 @@ function pet_isset_or(&$val, $alternate = NULL) {
  * PET test recipient callback
  */
 function pet_test_callback($node = NULL) {
-  return array('3|fred@example.com', '7|sally@example.com', '|non.user@example.com');
+  return array('fred@example.com', 'sally@example.com');
 }
 
-
-
-
+/**
+ * Parse a list of emails and return errors if any.
+ */
+function pet_validate_emails($mail_text) {
+  $errors = array();
+  
+  foreach (pet_parse_mails($mail_text) as $mail) {
+    if (!valid_email_address($mail)) {
+      $errors[] = t('Invalid email address found: %mail.', array('%mail' => $mail));
+    }
+  }
+  
+  return $errors;
+}
 
