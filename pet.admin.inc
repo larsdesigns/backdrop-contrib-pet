@@ -250,34 +250,44 @@ function pet_user_form(&$form_state, $pet) {
   $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
   $form_state['storage']['step'] = $step;
   $form_state['storage']['pet'] = $pet;
-  $nid = $form_state['storage']['nid'] = $_REQUEST['nid'];
-  $uid = $form_state['storage']['uid'] = $_REQUEST['uid'];
+  
+  // Get any query args
+  $nid = $form_state['storage']['nid'] = pet_is_natural($_REQUEST['nid']) ? $_REQUEST['nid'] : NULL;
+  $uid = $form_state['storage']['uid'] = pet_is_natural($_REQUEST['uid']) ? $_REQUEST['uid'] : NULL;
+  $recipient_callback = $form_state['storage']['recipient_callback'] = (
+    pet_isset_or($_REQUEST['recipient_callback']) === 'true' || 
+    pet_isset_or($_REQUEST['uid']) === '0' // backward compatibility
+  );
+  
+  flog_it($nid, '$nid');
+  flog_it($uid, '$uid');
+  flog_it($recipient_callback, '$recipient_callback');
 
   switch ($step) {
     case 1:
-      if (!isset($uid)) {
-        $form['mail'] = array(
-          '#type' => 'textfield',
-          '#title' => t('Recipient\'s e-mail address'),
-          '#maxlength' => 255,
-          '#required' => TRUE,
-        );
-      }
-      elseif ($uid > 0) {
-        $user = user_load(array('uid' => $uid));
-        $form['mail'] = array(
-          '#type' => 'value',
-          '#value' => $user->mail,
-        );
-        $form['recipients'] = array(
-          '#value' => t('Recipient will be ') . $user->mail,
-        );
+      if ($recipient_callback) {
+        $default_mail = t('Recipient list will be generated for preview.');
       }
       else {
-        $form['recipients'] = array(
-          '#value' => t('Recipient list will be generated for preview.'),
-        );
+        $default_mail = '';
+        if ($uid) {
+          if ($account = user_load(array('uid' => $uid))) {
+            $default_mail = $account->mail;
+          }
+          else {
+            drupal_set_message(t('Cannot load a user with uid @uid.', array('@uid' => $uid)), 'error');
+          }
+        }
       }
+      $form['recipients'] = array(
+        '#title' => t('To'),
+        '#type' => 'textarea',
+        '#required' => TRUE,
+        '#rows' => 3,
+        '#default_value' => $default_mail,
+        '#description' => t('Enter the recipients separated by lines or commas.'),
+        '#disabled' => $recipient_callback,
+      );
       $form['subject'] = array(
         '#type' => 'textfield',
         '#title' => t('Subject'),
@@ -371,7 +381,18 @@ function pet_user_form_validate($form, &$form_state) {
   $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
 
   if ($step == 1) {
-    if ($form_state['storage']['uid'] == '0') {
+    $recipients = pet_recipients($form_state);
+  }
+}
+
+/**
+ * Validate PET form.
+ */
+function findmepet_user_form_validate($form, &$form_state) {
+  $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
+
+  if ($step == 1) {
+    if ($form_state['storage']['recipient_callback']) {
       $recipients = pet_recipients($form_state);
       if (!is_array($recipients)) {
         form_set_error('pet', t('Callback is not returning an array of recipients.'));
@@ -442,6 +463,34 @@ function pet_make_preview(&$form_state) {
  * Return an array of email recipients
  */
 function pet_recipients($form_state) {
+  if ($form_state['storage']['recipient_callback']) {
+    $recipients = pet_callback_recipients($form_state);
+    if (!is_array($recipients)) {
+      form_set_error('recipients', t('There is no recipient callback defined for this template.'));
+      return NULL;
+    }
+  }
+  else {
+    flog_it($form_state['values']['recipients'], 'in');
+    $recipients = preg_split('/[\n\r, ]/', $form_state['values']['recipients'], -1, PREG_SPLIT_NO_EMPTY); 
+    //findme
+    flog_it($recipients, 'split');
+  }
+  
+  foreach ($recipients as $recipient) {
+    if (!valid_email_address($recipient)) {
+      form_set_error('recipients', t('Invalid email address found: %email.', array('%email' => $recipient)));
+    }
+  }
+  
+  // findme - patch in uids?
+  return $recipients;
+}
+
+/**
+ * Return an array of email recipients
+ */
+function findmepet_recipients($form_state) {
   $uid = $form_state['storage']['uid'];
     
   if ($uid == '0') {
@@ -462,13 +511,28 @@ function pet_callback_recipients($form_state) {
   
   if (!empty($callback)) {
     if (function_exists($callback)) {
-      return $callback($node);
+      $recipients = $callback($node);
+      
+      // Remove uid for backward compatibility
+      if (isset($recipients) && is_array($recipients)) {
+        $new_recipients = array();
+        foreach ($recipients as $recipient) {
+          flog_it($recipient, 'was');
+          $recipient = preg_replace('/^[0-9]*\|/', '', $recipient);
+          flog_it($recipient, 'now');
+          $new_recipients[] = $recipient;
+        }
+        return $new_recipients;
+      }
     }
   }
   
-  return array();
+  return NULL;
 }
 
+/**
+ * Return formatted list of PET recipients for preview display.
+ */
 function pet_recipients_formatted($recipients) {
   if (is_array($recipients)) {
     foreach ($recipients as $recipient) {
@@ -479,6 +543,28 @@ function pet_recipients_formatted($recipients) {
     }
     return $output;
   }
+}
+
+/**
+ * Return TRUE if a $val is a natural number (integer 1, 2, 3, ...).  Base can
+ * be changed to zero if desired.
+ */
+function pet_is_natural($val, $base = 1) {
+  if (!isset($val)) {
+    return FALSE;
+  }
+  $return = ((string)$val === (string)(int)$val);
+  if ($return && intval($val) < $base) {
+    $return = FALSE;
+  }
+  return $return;
+}
+
+/**
+ * Check if a variable is set and return it if so, otherwise the alternative.
+ */
+function pet_isset_or(&$val, $alternate = NULL) {
+  return isset($val) ? $val : $alternate;
 }
 
 /**
