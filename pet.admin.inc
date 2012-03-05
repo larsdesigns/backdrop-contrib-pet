@@ -280,6 +280,9 @@ function pet_user_form(&$form_state, $pet) {
       if ($recipient_callback) {
         $default_mail = t('Recipient list will be generated for preview.');
       }
+      elseif ($form_state['storage']['recipients_raw']) {
+        $default_mail = $form_state['storage']['recipients_raw'];
+      }
       else {
         $default_mail = '';
         if ($uid) {
@@ -310,14 +313,14 @@ function pet_user_form(&$form_state, $pet) {
         '#title' => t('Cc'),
         '#type' => 'textarea',
         '#rows' => 3,
-        '#default_value' => $pet->cc_default,
+        '#default_value' => $form_state['storage']['cc'] ? $form_state['storage']['cc'] : $pet->cc_default,
         '#description' => t('Enter any copied emails separated by lines or commas.'),
       );
       $form['copies']['bcc'] = array(
         '#title' => t('Bcc'),
         '#type' => 'textarea',
         '#rows' => 3,
-        '#default_value' => $pet->bcc_default,
+        '#default_value' => $form_state['storage']['bcc'] ? $form_state['storage']['bcc'] : $pet->bcc_default,
         '#description' => t('Enter any blind copied emails separated by lines or commas.'),
       );
       $form['subject'] = array(
@@ -461,9 +464,11 @@ function pet_user_form_submit($form, &$form_state) {
   
   switch ($step) {
     case 1:
-      $form_state['storage']['mail'] = $form_state['values']['mail'];
+      $form_state['storage']['recipients_raw'] = $form_state['values']['recipients'];
       $form_state['storage']['subject'] = $form_state['values']['subject'];
       $form_state['storage']['mail_body'] = $form_state['values']['mail_body'];
+      $form_state['storage']['cc'] = $form_state['values']['cc'];
+      $form_state['storage']['bcc'] = $form_state['values']['bcc'];
       pet_make_preview($form_state);
       break;
       
@@ -474,8 +479,8 @@ function pet_user_form_submit($form, &$form_state) {
       $subject = $form_state['storage']['subject'];
       $body = $form_state['storage']['mail_body'];
       $from = NULL;  // use PET or default setting
-      $cc = $form_state['values']['cc'];
-      $bcc = $form_state['values']['bcc'];
+      $cc = $form_state['storage']['cc'];
+      $bcc = $form_state['storage']['bcc'];
       pet_send_mail($name, $recipients, $nid, $subject, $body, $from, $cc, $bcc);
       break;
   }
