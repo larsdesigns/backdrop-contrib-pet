@@ -126,9 +126,16 @@ function pet_schema() {
 }
 
 /**
- * Add new columns to {pets}.
+ * It would appear this used to exist.  Do nothing.
  */
 function pet_update_6001() {
+  return array();
+}
+
+/**
+ * Add new columns to {pets}.
+ */
+function pet_update_6002() {
   $ret = array();
 
   db_add_field(
