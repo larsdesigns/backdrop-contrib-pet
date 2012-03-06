@@ -300,7 +300,7 @@ function pet_user_form(&$form_state, $pet) {
         '#required' => TRUE,
         '#rows' => 3,
         '#default_value' => $default_mail,
-        '#description' => t('Enter the recipients separated by lines or commas.'),
+        '#description' => t('Enter the recipient(s) separated by lines or commas. A separate email will be sent to each, with token substitution if the email corresponds to a site user.'),
         '#disabled' => $recipient_callback,
       );
       $form['copies'] = array(
