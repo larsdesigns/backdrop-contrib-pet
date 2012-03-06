@@ -1,8 +1,8 @@
 name = PET Reference
-description = Defines a field type for referencing pet template into node.
+description = CCK field type for referencing a previewable email template in a node.
 dependencies[] = content
 dependencies[] = text
 dependencies[] = optionwidgets
 dependencies[] = pet
-package = Email
+package = Mail
 core = 6.x
