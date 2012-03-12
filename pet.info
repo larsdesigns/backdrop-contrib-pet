@@ -1,5 +1,7 @@
 name = Previewable E-mail Templates
-description = Create email templates with token support and preview them before sending.
-dependencies[] = token
-core = 6.x
+description = Create email templates with token and rules support and optionally preview them before sending.
+dependencies[] = entity_token
+dependencies[] = entity
+core = 7.x
 package = Mail
+;files[] = tests/pet.test

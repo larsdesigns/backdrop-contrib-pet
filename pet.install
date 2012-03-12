@@ -6,114 +6,76 @@
  */
 
 /**
- * Implementation of hook_install().
- */
-function pet_install() {
-  $success = drupal_install_schema('pet');
-
-  if ($success) {
-    // Install a couple demonstration templates (you can delete these from the UI if you want).
-    include_once(drupal_get_path('module', 'pet') . '/pet.module');
-    $pet_simple = new stdClass;
-    $pet_simple->name = 'simple';
-    $pet_simple->title = 'Simple template';
-    $pet_simple->subject = 'Simple subject';
-    $pet_simple->body = 'Simple body';
-    $pet_simple->object_types = '';
-    $pet_simple->recipient_callback = '';
-    pet_insert($pet_simple);
-
-    $pet_tokens_and_callback = new stdClass;
-    $pet_tokens_and_callback->name = 'tokens_and_callback';
-    $pet_tokens_and_callback->title = 'Template with custom tokens and recipient list callback';
-    $pet_tokens_and_callback->subject = 'Hi [user]';
-    $pet_tokens_and_callback->body = 'I want to tell you something about node [title]';
-    $pet_tokens_and_callback->object_types = '';
-    $pet_tokens_and_callback->recipient_callback = 'pet_test_callback';
-    pet_insert($pet_tokens_and_callback);
-  }
-
-  if ($success) {
-    drupal_set_message(st('Previewable email template module installed successfully.'));
-  }
-  else {
-    drupal_set_message(st('The installation of Previewable email template module failed.'), 'error');
-  }
-}
-
-/**
- * Implementation of hook_uninstall().
- */
-function pet_uninstall() {
-  drupal_uninstall_schema('pet');
-  drupal_set_message(t('Previewable email template module has been uninstalled.'));
-}
-
-/**
  * Implementation of hook_schema().
  */
 function pet_schema() {
   $schema = array();
 
   $schema['pets'] = array(
+    'description' => 'Base table for previewable email templates.',
     'fields' => array(
       'pid' => array(
         'type' => 'serial',
-        'size' => 'small',
-        'unsigned' => TRUE,
         'not null' => TRUE,
+        'description' => 'The internal identifier for any template.',
       ),
       'name' => array(
         'type' => 'varchar',
-        'length' => '32',
-        'not null' => FALSE,
-        'default' => '',
+        'length' => '64',
+        'not null' => TRUE,
+        'description' => 'The machine name of the template.',
       ),
       'title' => array(
         'type' => 'varchar',
         'length' => '255',
-        'not null' => FALSE,
+        'not null' => TRUE,
+        'description' => 'The human readable name of the template.',
         'default' => '',
       ),
       'subject' => array(
         'type' => 'varchar',
         'length' => '255',
         'not null' => FALSE,
+        'description' => 'The template subject.',
         'default' => '',
       ),
       'body' => array(
         'type' => 'text',
         'not null' => FALSE,
-        'default' => '',
+        'size' => 'big',
+        'description' => 'The template body.',
       ),
       'object_types' => array(
         'type' => 'text',
         'not null' => FALSE,
-        'default' => '',
+        'size' => 'medium',
+        'description' => 'The supported token object types.',
       ),
       'recipient_callback' => array(
         'type' => 'varchar',
         'length' => '255',
         'not null' => FALSE,
+        'description' => 'A recipient callback function, if any.',
         'default' => '',
       ),
       'from_override' => array(
         'type' => 'varchar',
         'length' => '255',
         'not null' => FALSE,
+        'description' => 'Email to override system from address.',
         'default' => '',
       ),
       'cc_default' => array(
         'type' => 'text',
         'not null' => FALSE,
         'size' => 'medium',
-        'default' => '',
+        'description' => 'Optional cc emails.',
       ),
       'bcc_default' => array(
         'type' => 'text',
         'not null' => FALSE,
         'size' => 'medium',
-        'default' => '',
+        'description' => 'Optional bcc emails.',
       ),
     ),
     'primary key' => array('pid'),
@@ -126,53 +88,8 @@ function pet_schema() {
 }
 
 /**
- * It would appear this used to exist.  Do nothing.
+ * Implementation of hook_uninstall().
  */
-function pet_update_6001() {
-  return array();
+function pet_uninstall() {
 }
 
-/**
- * Add new columns to {pets}.
- */
-function pet_update_6002() {
-  $ret = array();
-
-  db_add_field(
-    $ret, 
-    'pets', 
-    'from_override', 
-    array(
-    'type' => 'varchar',
-    'length' => '255',
-    'not null' => FALSE,
-    'default' => '',
-    )
-  );
-
-  db_add_field(
-    $ret, 
-    'pets', 
-    'cc_default', 
-    array(
-      'type' => 'text',
-      'not null' => FALSE,
-      'size' => 'medium',
-      'default' => '',
-    )
-  );
-
-  db_add_field(
-    $ret, 
-    'pets', 
-    'bcc_default', 
-    array(
-      'type' => 'text',
-      'not null' => FALSE,
-      'size' => 'medium',
-      'default' => '',
-    )
-  );
-
-  return $ret;
-}
