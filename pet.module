@@ -19,25 +19,27 @@ function pet_entity_info() {
     'pet' => array(
       'label' => t('Previewable E-mail Template'),
       'plural label' => t('Previewable E-mail Templates'),
-      //'controller class' => 'PETController',
-      'controller class' => 'EntityAPIController',
-      //'controller class' => 'EntityAPIControllerExportable',
+      'description' => t('Create email templates with token and rules support and optionally preview them before sending.'),
+      'entity class' => 'PET',
+      'controller class' => 'EntityAPIControllerExportable',
       'base table' => 'pets',
       'fieldable' => FALSE,
+      'exportable' => TRUE,
       'entity keys' => array(
+        'name' => 'name',
         'id' => 'pid',
         'label' => 'title',
+        'status' => 'status',
       ),
-      //'load hook' => 'pet_load',
-      'label callback' => 'entity_class_label',
-      'uri callback' => 'entity_class_uri',
+      'load hook' => 'pet_load',
+      'uri callback' => 'pet_uri',
       'module' => 'pet',
       'access callback' => 'pet_access',
-      // Enable the entity API's admin UI.
       'admin ui' => array(
-        'path' => 'admin/config/workflow/pet',
-        //'file' => 'profile2.admin.inc',
-        'controller class' => 'EntityDefaultUIController',
+        'path' => 'admin/structure/pets',
+        'file' => 'pet.admin.inc',
+        'file path' => drupal_get_path('module', 'pet') . '/includes',
+        'controller class' => 'PETUIController',
       ),
     ),
   );
@@ -70,16 +72,73 @@ function pet_permission() {
 }
 
 /**
- * Controller class for PETs.
- *
- * This extends the DrupalDefaultEntityController class, adding required
- * special handling for PET objects.
+ * The class used for PET entities.
  */
-class PETController extends DrupalDefaultEntityController {
+class PET extends Entity {
 
-  protected function buildQuery($ids, $conditions = array(), $revision_id = FALSE) {
-    $query = parent::buildQuery($ids, $conditions, $revision_id);
-    $query->orderBy('base.name');
-    return $query;
+  public $pid;
+  public $name;
+  public $title;
+  public $subject;
+  public $body;
+  public $from_override;
+  public $cc_default;
+  public $bcc_default;
+  public $recipient_callback;
+  public $object_types;
+
+  public function __construct($values = array()) {
+    parent::__construct($values, 'pet');
   }
+}
+
+/**
+ * PET UI controller.
+ */
+class PETUIController extends EntityDefaultUIController {
+  /**
+   * Overrides hook_menu() defaults.
+   */
+  public function hook_menu() {
+    $items = parent::hook_menu();
+    $items[$this->path]['description'] = 'Create email templates with token and rules support and optionally preview them before sending.';
+    return $items;
+  }
+}
+
+/**
+ * Loads a PET by ID.
+ */
+function pet_load($pid) {
+  $pets = pet_load_multiple(array($pid), array());
+  return $pets ? reset($pets) : FALSE;
+}
+
+/**
+ * Loads multiple PETs by ID or based on a set of conditions.
+ *
+ * @see entity_load()
+ *
+ * @param $pids
+ *   An array of PET IDs.
+ * @param $conditions
+ *   An array of conditions on the {pets} table in the form
+ *     'field' => $value.
+ * @param $reset
+ *   Whether to reset the internal PET loading cache.
+ *
+ * @return
+ *   An array of PET objects indexed by pid.
+ */
+function pet_load_multiple($pids = array(), $conditions = array(), $reset = FALSE) {
+  return entity_load('pet', $pids, $conditions, $reset);
+}
+
+/**
+ * Entity uri callback.
+ */
+function pet_uri($pet) {
+  return array(
+    'path' => 'pet/' . $pet->name,
+  );
 }
