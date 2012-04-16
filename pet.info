@@ -1,5 +1,5 @@
-name = Previewable E-mail Templates
-description = Create email templates with token and rules support and optionally preview them before sending.
+name = Previewable Email Templates
+description = Create previewable email templates with token and rules support.
 dependencies[] = entity_token
 dependencies[] = entity
 core = 7.x

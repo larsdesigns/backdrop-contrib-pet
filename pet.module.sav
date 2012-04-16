@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Previewable E-mail Template module.
+ * Previewable Email Template module.
  */
 
 // Views support is included in includes/views/pet.views.inc

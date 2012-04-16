@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Previewable E-mail Template module install/schema/update hooks.
+ * Previewable Email Template module install/schema/update hooks.
  */
 
 /**
@@ -52,7 +52,7 @@ function pet_schema() {
         'description' => 'The template subject.',
         'default' => '',
       ),
-      'body' => array(
+      'mail_body' => array(
         'type' => 'text',
         'not null' => FALSE,
         'size' => 'big',

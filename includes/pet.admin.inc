@@ -46,7 +46,7 @@ function pet_form($form, &$form_state, $pet, $op = 'edit') {
   $form['mail_body'] = array(
     '#type' => 'textarea',
     '#title' => t('Body'),
-    '#default_value' => $pet->body,
+    '#default_value' => $pet->mail_body,
     '#description' => t('The body of the email template. May include tokens of any token type specified below.'),
   );
   $form['advanced'] = array(
@@ -133,4 +133,376 @@ function pet_form_submit(&$form, &$form_state) {
  */
 function pet_form_submit_delete(&$form, &$form_state) {
   $form_state['redirect'] = 'admin/structure/registration_types/manage/' . $form_state['registration_type']->type . '/delete';
+}
+
+/**
+ * Multi-step PET form.
+ */
+function pet_user_form($form, &$form_state, $pet) {
+  $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
+  $form_state['storage']['step'] = $step;
+  $form_state['storage']['pet'] = $pet;
+  
+  // Get any query args
+  $nid = $form_state['storage']['nid'] = pet_is_natural(pet_isset_or($_REQUEST['nid'])) ? $_REQUEST['nid'] : NULL;
+  $uid = $form_state['storage']['uid'] = pet_is_natural(pet_isset_or($_REQUEST['uid'])) ? $_REQUEST['uid'] : NULL;
+  $recipient_callback = $form_state['storage']['recipient_callback'] = (
+    pet_isset_or($_REQUEST['recipient_callback']) === 'true' || 
+    pet_isset_or($_REQUEST['uid']) === '0' // backward compatibility
+  );
+  
+  switch ($step) {
+    case 1:
+      if ($recipient_callback) {
+        $default_mail = t('Recipient list will be generated for preview.');
+      }
+      elseif (pet_isset_or($form_state['storage']['recipients_raw'])) {
+        $default_mail = $form_state['storage']['recipients_raw'];
+      }
+      else {
+        $default_mail = '';
+        if ($uid) {
+          if ($account = user_load($uid)) {
+            $default_mail = $account->mail;
+          }
+          else {
+            drupal_set_message(t('Cannot load a user with uid @uid.', array('@uid' => $uid)), 'error');
+          }
+        }
+      }
+      $form['recipients'] = array(
+        '#title' => t('To'),
+        '#type' => 'textarea',
+        '#required' => TRUE,
+        '#rows' => 3,
+        '#default_value' => $default_mail,
+        '#description' => t('Enter the recipient(s) separated by lines or commas. A separate email will be sent to each, with token substitution if the email corresponds to a site user.'),
+        '#disabled' => $recipient_callback,
+      );
+      $form['copies'] = array(
+        '#title' => t('Copies'),
+        '#type' => 'fieldset',
+        '#collapsible' => TRUE,
+        '#collapsed' => empty($pet->cc_default) && empty($pet->bcc_default),
+      );
+      $form['copies']['cc'] = array(
+        '#title' => t('Cc'),
+        '#type' => 'textarea',
+        '#rows' => 3,
+        '#default_value' => pet_isset_or($form_state['storage']['cc']) ? $form_state['storage']['cc'] : $pet->cc_default,
+        '#description' => t('Enter any copied emails separated by lines or commas.'),
+      );
+      $form['copies']['bcc'] = array(
+        '#title' => t('Bcc'),
+        '#type' => 'textarea',
+        '#rows' => 3,
+        '#default_value' => pet_isset_or($form_state['storage']['bcc']) ? $form_state['storage']['bcc'] : $pet->bcc_default,
+        '#description' => t('Enter any blind copied emails separated by lines or commas.'),
+      );
+      $form['subject'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Subject'),
+        '#maxlength' => 255,
+        '#default_value' => pet_isset_or($form_state['storage']['subject']) ? $form_state['storage']['subject'] : $pet->subject,
+        '#required' => TRUE,
+      );
+      $form['mail_body'] = array(
+        '#type' => 'textarea',
+        '#title' => t('Body'),
+        '#default_value' => pet_isset_or($form_state['storage']['mail_body']) ? $form_state['storage']['mail_body'] : $pet->mail_body,
+        '#required' => TRUE,
+        '#rows' => 15,
+        '#description' => t('Review and edit template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/build/pets/edit/' . $pet->name))),
+      );
+      $form['token_help'] = array(
+        '#title' => t('Replacement patterns'),
+        '#type' => 'fieldset',
+        '#collapsible' => TRUE,
+        '#collapsed' => TRUE,
+        '#description' => t('Make sure that the tokens you choose are available to your template when previewed. This list has all tokens. If you use tokens outside the node and user groups, be sure to include them in Custom tokens above. Only tokens accepting node, user, and global objects are currently supported.'),
+      );
+      $form['token_help']['help'] = array(
+        '#value' => theme('token_help', 'all'),
+      );
+      $form['preview'] = array(
+        '#type' => 'submit',
+        '#value' => t('Preview'),
+      );
+      break;
+
+    case 2:
+      $form['info'] = array(
+        '#value' => t('A preview of the email is shown below. If you\'re satisfied, click Send. If not, click Back to edit the email.'),
+      );
+      $form['recipients'] = array(
+        '#type' => 'textarea',
+        '#title' => t('To'),
+        '#rows' => 4,
+        '#value' => pet_recipients_formatted($form_state['storage']['recipients']),
+        '#disabled' => TRUE,
+      );
+      if ($form_state['values']['cc']) {
+        $form['cc'] = array(
+          '#type' => 'textarea',
+          '#title' => t('CC'),
+          '#rows' => 4,
+          '#value' => $form_state['values']['cc'],
+          '#disabled' => TRUE,
+        );
+      }
+      if ($form_state['values']['bcc']) {
+        $form['bcc'] = array(
+          '#type' => 'textarea',
+          '#title' => t('BCC'),
+          '#rows' => 4,
+          '#value' => $form_state['values']['bcc'],
+          '#disabled' => TRUE,
+        );
+      }
+      $form['subject'] = array(
+        '#type' => 'textfield',
+        '#title' => t('Subject'),
+        '#size' => 80,
+        '#value' => $form_state['storage']['subject_preview'],
+        '#disabled' => TRUE,
+      );
+      $form['mail_body'] = array(
+        '#type' => 'textarea',
+        '#title' => t('Body'),
+        '#rows' => 15,
+        '#value' => $form_state['storage']['body_preview'],
+        '#disabled' => TRUE,
+      );
+      $form['body_label'] = array(
+        '#prefix' => '<div class="pet_body_label">',
+        '#suffix' => '</div>',
+        '#value' => '<label>' . t('Body markup:') . '</label>',
+      );
+      $form['body_preview'] = array(
+        '#prefix' => '<div class="pet_body_preview">',
+        '#suffix' => '</div>',
+        '#value' => $form_state['storage']['body_preview'],
+      );
+      $form['back'] = array(
+        '#type' => 'submit',
+        '#value' => t('Back'),
+        '#submit' => array('pet_user_form_back'),
+      );
+      $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Send email(s)'),
+      );
+      break;
+
+    case 3:
+      drupal_set_message(t('Email(s) sent'));
+      unset($form_state['storage']);
+      break;
+  }
+  
+  return $form;
+}
+
+/**
+ * Validate PET form.
+ */
+function pet_user_form_validate($form, &$form_state) {
+  $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
+
+  if ($step == 1) {
+    $errors = pet_validate_recipients($form_state, $recipients);
+    if (!empty($errors)) {
+      form_set_error('recipients', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
+    }
+    else {
+      // Save recipients to avoid redundant processing on form submit
+      $form_state['storage']['recipients'] = $recipients;
+    }
+    
+    $errors = pet_validate_emails($form_state['values']['cc']);
+    if (!empty($errors)) {
+      form_set_error('cc', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
+    }
+
+    $errors = pet_validate_emails($form_state['values']['bcc']);
+    if (!empty($errors)) {
+      form_set_error('bcc', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
+    }
+  }
+}
+
+/**
+ * Form submission.  Take action on step 2 (confirmation of the populated templates).
+ */
+function pet_user_form_submit($form, &$form_state) {  
+  $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
+  $form_state['storage']['step'] = $step;
+  
+  switch ($step) {
+    case 1:
+      $form_state['rebuild'] = TRUE;
+      $form_state['storage']['recipients_raw'] = $form_state['values']['recipients'];
+      $form_state['storage']['subject'] = $form_state['values']['subject'];
+      $form_state['storage']['mail_body'] = $form_state['values']['mail_body'];
+      $form_state['storage']['cc'] = $form_state['values']['cc'];
+      $form_state['storage']['bcc'] = $form_state['values']['bcc'];
+      pet_make_preview($form_state);
+      break;
+      
+    case 2:
+      $form_state['rebuild'] = TRUE;
+      $name = $form_state['storage']['pet']->name;
+      $recipients = $form_state['storage']['recipients'];
+      $nid = $form_state['storage']['nid'];
+      $subject = $form_state['storage']['subject'];
+      $body = $form_state['storage']['mail_body'];
+      $from = NULL;  // use PET or default setting
+      $cc = $form_state['storage']['cc'];
+      $bcc = $form_state['storage']['bcc'];
+      pet_send_mail($name, $recipients, $nid, $subject, $body, $from, $cc, $bcc);
+      break;
+  }
+  
+  $form_state['storage']['step']++;
+}
+
+/**
+ * Return user to starting point on template multi-form.
+ */
+function pet_user_form_back($form, &$form_state) {
+  $form_state['storage']['step'] = 1;
+}
+
+/**
+ * Generate a preview of the tokenized email for the first in the list.
+ */
+function pet_make_preview(&$form_state) {
+  $params = array(
+    'pet_uid' => $form_state['storage']['recipients'][0]['uid'],
+    'pet_nid' => $form_state['storage']['nid'],
+  );
+  $subs = pet_substitutions($form_state['storage']['pet'], $params);
+  flog_it($subs, '$subs');
+  
+  $form_state['storage']['subject_preview'] = token_replace($form_state['values']['subject'], $subs);
+  $form_state['storage']['body_preview'] = token_replace($form_state['values']['mail_body'], $subs);
+  flog_it($form_state['storage'], 'storage');
+}
+
+/**
+ * Validate existence of a non-empty recipient list free of email errors.
+ */
+function pet_validate_recipients($form_state, &$recipients) {
+  $errors = array();
+  $recipients = array();
+  
+  if ($form_state['storage']['recipient_callback']) {
+    // Get recipients from callback
+    $mails = pet_callback_recipients($form_state);
+    if (!is_array($mails)) {
+      $errors[] = t('There is no recipient callback defined for this template or it is not returning an array.');
+      return $errors;
+    }
+  }
+  else {
+    // Get recipients from form field
+    $mails = pet_parse_mails($form_state['values']['recipients']);
+  }
+  
+  // Validate and build recipient array with uid on the fly
+  foreach ($mails as $mail) {
+    if (!valid_email_address($mail)) {
+      $errors[] = t('Invalid email address found: %mail.', array('%mail' => $mail));
+    }
+    else {
+      $recipients[] = array('mail' => $mail, 'uid' => pet_lookup_uid($mail));
+    }
+  }
+  
+  // Check for no recipients
+  if (empty($errors) && count($recipients) < 1) {
+    $errors[] = t('There are no recipients for this email.');
+  }
+  
+  return $errors;
+}
+
+/**
+ * Return an array of email recipients provided by a callback function.
+ */
+function pet_callback_recipients($form_state) {
+  $nid = $form_state['storage']['nid'];
+  $pet = $form_state['storage']['pet'];
+  $callback = $pet->recipient_callback;
+  $node = empty($nid) ? NULL : node_load($nid); 
+  
+  if (!empty($callback)) {
+    if (function_exists($callback)) {
+      $recipients = $callback($node);
+      
+      // Remove uid for backward compatibility
+      if (isset($recipients) && is_array($recipients)) {
+        $new_recipients = array();
+        foreach ($recipients as $recipient) {
+          $recipient = preg_replace('/^[0-9]*\|/', '', $recipient);
+          $new_recipients[] = $recipient;
+        }
+        return $new_recipients;
+      }
+    }
+  }
+  
+  return NULL;
+}
+
+/**
+ * Return formatted list of PET recipients for preview display.
+ */
+function pet_recipients_formatted($recipients) {
+  $output = '';
+  if (is_array($recipients)) {
+    foreach ($recipients as $recipient) {
+      $output .= $recipient['mail'];
+      $output .= $recipient['uid'] ? t(' (user @uid)', array('@uid' => $recipient['uid'])) : t(' (no user id)');
+      $output .= "\n";
+    }
+    return $output;
+  }
+}
+
+/**
+ * Return TRUE if a $val is a natural number (integer 1, 2, 3, ...).  Base can
+ * be changed to zero if desired.
+ */
+function pet_is_natural($val, $base = 1) {
+  if (!isset($val)) {
+    return FALSE;
+  }
+  $return = ((string)$val === (string)(int)$val);
+  if ($return && intval($val) < $base) {
+    $return = FALSE;
+  }
+  return $return;
+}
+
+/**
+ * Check if a variable is set and return it if so, otherwise the alternative.
+ */
+function pet_isset_or(&$val, $alternate = NULL) {
+  return isset($val) ? $val : $alternate;
+}
+
+/**
+ * Parse a list of emails and return errors if any.
+ */
+function pet_validate_emails($mail_text) {
+  $errors = array();
+  
+  foreach (pet_parse_mails($mail_text) as $mail) {
+    if (!valid_email_address($mail)) {
+      $errors[] = t('Invalid email address found: %mail.', array('%mail' => $mail));
+    }
+  }
+  
+  return $errors;
 }
