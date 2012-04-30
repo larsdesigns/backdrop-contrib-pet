@@ -99,7 +99,6 @@ class PET extends Entity {
   public $cc_default;
   public $bcc_default;
   public $recipient_callback;
-  public $object_types;
 
   public function __construct($values = array()) {
     parent::__construct($values, 'pet');
@@ -175,9 +174,7 @@ function pet_parse_mails($mail_text) {
  * Helper function to look up a uid from mail.
  */
 function pet_lookup_uid($mail) {
-  //findmereturn db_result(db_query_range("SELECT uid FROM {users} WHERE mail='%s'", $mail, 0, 1));
   $uid = db_query_range('SELECT uid FROM {users} WHERE mail = :mail', 0, 1, array(':mail' => $mail))->fetchField();
-  flog_it($uid, '$uid');
   return $uid;
 }
 
@@ -217,7 +214,7 @@ function pet_send_mail($name, $recipients, $nid = NULL, $subject = NULL, $body =
   
   // Override subject and body if necessary
   $pet->subject = $subject ? $subject : $pet->subject;
-  $pet->body = $body ? $body : $pet->body;
+  $pet->mail_body = $body ? $body : $pet->mail_body;
   
   // Store data in params in case a module wants to act on them somehow
   $params['pet_recipients'] = $recipients;
@@ -281,9 +278,12 @@ function pet_send_one_mail($pet, $params) {
   $params['pet'] = $pet;
   $substitutions = pet_substitutions($pet, $params);
   $params['subject'] = token_replace($pet->subject, $substitutions);
-  $params['body'] = token_replace($pet->body, $substitutions);
-    
-  drupal_mail('pet', $pet->name, $params['pet_to'], language_default(), $params, $params['pet_from']);
+  $params['body'] = token_replace($pet->mail_body, $substitutions);
+  
+  $message = drupal_mail('pet', $pet->name, $params['pet_to'], language_default(), $params, $params['pet_from']);
+  if ($message['result']) {
+    watchdog('pet', 'Successfully sent email to %recipient', array('%recipient' => $params['pet_to']));
+  }
 }
 
 /**
@@ -304,24 +304,6 @@ function pet_substitutions($pet, $params) {
     $substitutions['node'] = $node;
   }
   
-  // Custom substitutions
-  $pairs = explode("\n", $pet->object_types);
-  foreach ($pairs as $pair) {
-    if (!empty($pair)) {
-      list($type, $object) = explode('|', $pair);
-      $object = trim($object);
-      if ($object == 'node' && !empty($nid)) {
-        $substitutions[$type] = $node;
-      }
-      elseif ($object == 'user' && !empty($uid)) {
-        $substitutions[$type] = $user;
-      }
-      else {
-        $substitutions[$type] = NULL;
-      }      
-    }
-  }
-  
   // Give modules the opportunity to add their own token types/objects
   drupal_alter('pet_substitutions', $substitutions, $params);
   return $substitutions;
@@ -337,10 +319,10 @@ function pet_mail($key, &$message, $params) {
   $message['subject'] = $params['subject'];
   $message['body'][] = $params['body'];
     
-  if (is_array($params['pet_cc']) && count($params['pet_cc']) > 0) {
+  if (isset($params['pet_cc']) && is_array($params['pet_cc']) && count($params['pet_cc']) > 0) {
     $message['headers']['Cc'] = implode(',', $params['pet_cc']);
   }
-  if (is_array($params['pet_bcc']) && count($params['pet_bcc']) > 0) {
+  if (isset($params['pet_bcc']) && is_array($params['pet_bcc']) && count($params['pet_bcc']) > 0) {
     $message['headers']['Bcc'] = implode(',', $params['pet_bcc']);
   }
 }

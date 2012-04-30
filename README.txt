@@ -40,10 +40,6 @@ Configure (create, edit, delete) the templates for your site at Administer -> Si
   Recipient callback (optional) - The name of a function which is called to retrieve a list of email recipients, if
   the uid argument is 0 (not missing, but the number 0).  This is a function that you provide.  If there
   is a nid argument, the node is loaded and passed to this function.
-  
-  Custom tokens (optional) - The standard 'node', 'user', and 'global' tokens are provided.  Replacements are made for
-  'node' and 'user' if the nid and uid arguments, respectively, are positive integers.  If you have custom token
-  handlers which expect an object of type 'node' or 'user', list them here.  
 
 
 Template Usage Via Links / UI

@@ -60,7 +60,7 @@ function pet_form($form, &$form_state, $pet, $op = 'edit') {
     '#type' => 'textfield',
     '#title' => t('From override'),
     '#default_value' => $pet->from_override,
-    '#description' => t('By default, the From: address is the site address, which is %site_mail and which is configurable on the core <a href="@site_url">site information page</a>. You may specify a different From: address here, which will override the system default for this PET.', array('%site_mail' => variable_get('site_mail', ini_get('sendmail_from')), '@site_url' => url('admin/settings/site-information'))),
+    '#description' => t('By default, the From: address is the site address, which is %site_mail and which is configurable on the core <a href="@site_url">site information page</a>. You may specify a different From: address here, which will override the system default for this PET.', array('%site_mail' => variable_get('site_mail', ini_get('sendmail_from')), '@site_url' => url('admin/config/system/site-information'))),
     '#maxlength' => 255,
     '#required' => FALSE,
   );
@@ -87,22 +87,7 @@ function pet_form($form, &$form_state, $pet, $op = 'edit') {
     '#description' => t('The name of a function which will be called to retrieve a list of recipients. This function will be called if the query parameter uid=0 is in the URL. It will be called with one argument, the loaded node (if the PET takes one) or NULL if not. This function should return an array of recipients in the form uid|email, as in 136|bob@example.com. If the recipient has no uid, leave it blank but leave the pipe in. Providing the uid allows token substitution for the user.'),
     '#maxlength' => 255,
   );
-  $form['advanced']['object_types'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Custom tokens'),
-    '#default_value' => $pet->object_types,
-    '#description' => t('List of custom token types this template can handle, one per line. Format is type-name|object-it-acts-on, e.g. my-token-type|user. For types that don\'t require an object, leave the object empty, as in HCI global|. All tokens of type user and node are automatically available to all templates.'),
-  );
-  $form['token_help'] = array(
-    '#title' => t('Replacement patterns'),
-    '#type' => 'fieldset',
-    '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
-    '#description' => t('Make sure that the tokens you choose are available to your template when in use.'),
-  );
-  $form['token_help']['help'] = array(
-    '#value' => theme('token_help', 'all'),
-  );
+  $form['tokens'] = pet_token_help();
 
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
@@ -129,16 +114,9 @@ function pet_form_submit(&$form, &$form_state) {
 }
 
 /**
- * Form API submit callback for the delete button.
- */
-function pet_form_submit_delete(&$form, &$form_state) {
-  $form_state['redirect'] = 'admin/structure/registration_types/manage/' . $form_state['registration_type']->type . '/delete';
-}
-
-/**
  * Multi-step PET form.
  */
-function pet_user_form($form, &$form_state, $pet) {
+function pet_user_form($form, &$form_state, $pet) {  
   $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
   $form_state['storage']['step'] = $step;
   $form_state['storage']['pet'] = $pet;
@@ -212,18 +190,9 @@ function pet_user_form($form, &$form_state, $pet) {
         '#default_value' => pet_isset_or($form_state['storage']['mail_body']) ? $form_state['storage']['mail_body'] : $pet->mail_body,
         '#required' => TRUE,
         '#rows' => 15,
-        '#description' => t('Review and edit template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/build/pets/edit/' . $pet->name))),
+        '#description' => t('Review and edit template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/structure/pets/manage/' . $pet->name))),
       );
-      $form['token_help'] = array(
-        '#title' => t('Replacement patterns'),
-        '#type' => 'fieldset',
-        '#collapsible' => TRUE,
-        '#collapsed' => TRUE,
-        '#description' => t('Make sure that the tokens you choose are available to your template when previewed. This list has all tokens. If you use tokens outside the node and user groups, be sure to include them in Custom tokens above. Only tokens accepting node, user, and global objects are currently supported.'),
-      );
-      $form['token_help']['help'] = array(
-        '#value' => theme('token_help', 'all'),
-      );
+      $form['tokens'] = pet_token_help();
       $form['preview'] = array(
         '#type' => 'submit',
         '#value' => t('Preview'),
@@ -276,12 +245,12 @@ function pet_user_form($form, &$form_state, $pet) {
       $form['body_label'] = array(
         '#prefix' => '<div class="pet_body_label">',
         '#suffix' => '</div>',
-        '#value' => '<label>' . t('Body markup:') . '</label>',
+        '#markup' => '<label>' . t('Body markup') . '</label>',
       );
       $form['body_preview'] = array(
         '#prefix' => '<div class="pet_body_preview">',
         '#suffix' => '</div>',
-        '#value' => $form_state['storage']['body_preview'],
+        '#markup' => $form_state['storage']['body_preview'],
       );
       $form['back'] = array(
         '#type' => 'submit',
@@ -367,9 +336,35 @@ function pet_user_form_submit($form, &$form_state) {
 }
 
 /**
+ * Helper function to provide token help to template construction form and template use form.
+ */
+function pet_token_help() {
+  if (module_exists('token')) {
+    $tokens = array(
+      '#title' => t('Replacement patterns'),
+      '#type' => 'fieldset',
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+      '#description' => t('Make sure that the tokens you choose are available to your template when previewed. The list below includes the standard Nodes and Users groups, as well as global tokens. See also hook_pet_substitutions_alter().'),
+    );
+    $tokens['token_tree'] = array(
+      '#theme' => 'token_tree',
+      '#token_types' => array('node', 'user'),
+    );
+  }
+  else {
+    $tokens = array(
+      '#markup' => '<p>' . t('Enable the <a href="@drupal-token">Token module</a> to view the available token browser.', array('@drupal-token' => 'http://drupal.org/project/token')) . '</p>',
+    );
+  }
+  return $tokens;
+}
+
+/**
  * Return user to starting point on template multi-form.
  */
 function pet_user_form_back($form, &$form_state) {
+  $form_state['rebuild'] = TRUE;
   $form_state['storage']['step'] = 1;
 }
 
@@ -382,11 +377,9 @@ function pet_make_preview(&$form_state) {
     'pet_nid' => $form_state['storage']['nid'],
   );
   $subs = pet_substitutions($form_state['storage']['pet'], $params);
-  flog_it($subs, '$subs');
   
   $form_state['storage']['subject_preview'] = token_replace($form_state['values']['subject'], $subs);
   $form_state['storage']['body_preview'] = token_replace($form_state['values']['mail_body'], $subs);
-  flog_it($form_state['storage'], 'storage');
 }
 
 /**

@@ -58,12 +58,6 @@ function pet_schema() {
         'size' => 'big',
         'description' => 'The template body.',
       ),
-      'object_types' => array(
-        'type' => 'text',
-        'not null' => FALSE,
-        'size' => 'medium',
-        'description' => 'The supported token object types.',
-      ),
       'recipient_callback' => array(
         'type' => 'varchar',
         'length' => '255',
