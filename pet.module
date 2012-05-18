@@ -95,6 +95,8 @@ class PET extends Entity {
   public $title;
   public $subject;
   public $mail_body;
+  public $mail_body_plain;
+  public $send_plain;
   public $from_override;
   public $cc_default;
   public $bcc_default;
@@ -179,8 +181,11 @@ function pet_lookup_uid($mail) {
 }
 
 /**
- * Send tokenized email to each recipient.  Called once form passes validation.  Can also be
- * called directly from code.
+ * Send tokenized email to a list of recipients.
+ *
+ * Given a list of recipients, and an optional node id, perform token substitution and send an email
+ * to each. The node substitutions, if any, are the same in each email sent.  The user tokens, if any
+ * are custom based on the account (if any) associated with each email.  
  *
  * @param $name
  *   The unique name of the PET template.
@@ -188,20 +193,18 @@ function pet_lookup_uid($mail) {
  *   An array of at least one recipient in one of two formats:
  *      1. a simple email address, in which case the uid is looked up
  *      2. an array('mail' => <email address>, 'uid' => <uid>) in which case the uid is already available
- * @param $nid
- *   An optional node id for token substitutions.
- * @param $subject
- *   An optional subject which if provided will override the subject in the PET.
- * @param $body
- *   An optional body which if provided which will override the body in the PET.
- * @param $from
- *   An optional from email which if provided which will override the from in the PET (which overrides the site default).
- * @param $cc
- *   Optional cc emails which if provided which will override the cc's in the PET.
- * @param $bcc
- *   Optional bcc emails which if provided which will override the bcc's in the PET.
+ * @param $options
+ *   An array of options as follows:
+ *      nid - An optional node id for token substitutions.
+ *      subject - An optional subject which if provided will override the subject in the PET.
+ *      body - An optional body which if provided which will override the body in the PET.
+ *      body_plain - An optional plain text body which if provided which will override the plain text body in the PET.
+ *      from - An optional from email which if provided which will override the from in the PET (which
+ *        in turn overrides the site default).
+ *      cc - Optional cc emails which if provided which will override the cc's in the PET.
+ *      bcc - Optional bcc emails which if provided which will override the bcc's in the PET.
  */
-function pet_send_mail($name, $recipients, $nid = NULL, $subject = NULL, $body = NULL, $from = NULL, $cc = NULL, $bcc = NULL) {
+function pet_send_mail($name, $recipients, $options) {
   $pet = pet_load($name);
   if (!$pet) {
     watchdog('pet', 'Unable to load PET %name.', array('%name' => $name), WATCHDOG_ERROR);
@@ -211,18 +214,21 @@ function pet_send_mail($name, $recipients, $nid = NULL, $subject = NULL, $body =
     watchdog('pet', 'At least one recipient must be provided for PET %name.', array('%name' => $name), WATCHDOG_NOTICE);
     return;
   }
-  
+    
   // Override subject and body if necessary
-  $pet->subject = $subject ? $subject : $pet->subject;
-  $pet->mail_body = $body ? $body : $pet->mail_body;
+  $pet->subject = pet_isset_or($options['subject']) ? $options['subject'] : $pet->subject;
+  $pet->mail_body = pet_isset_or($options['body']) ? $options['body'] : $pet->mail_body;
+  $pet->mail_body_plain = pet_isset_or($options['body_plain']) ? $options['body_plain'] : $pet->mail_body_plain;
   
   // Store data in params in case a module wants to act on them somehow
   $params['pet_recipients'] = $recipients;
-  $params['pet_nid'] = $nid;
+  $params['pet_nid'] = pet_isset_or($options['nid']);
   
-  $params['pet_from'] = $from ? $from : ($pet->from_override ? $pet->from_override : variable_get('site_mail', ini_get('sendmail_from')));
-  $params['pet_cc'] = pet_parse_mails($cc);
-  $params['pet_bcc'] = pet_parse_mails($bcc);
+  $params['pet_from'] = pet_isset_or($options['from']) ?
+    $options['from'] :
+    ($pet->from_override ? $pet->from_override : variable_get('site_mail', ini_get('sendmail_from')));
+  $params['pet_cc'] = pet_parse_mails(pet_isset_or($options['cc']));
+  $params['pet_bcc'] = pet_parse_mails(pet_isset_or($options['bcc']));
   
   foreach ($recipients as $recipient) {
     if (is_array($recipient)) {
@@ -279,6 +285,16 @@ function pet_send_one_mail($pet, $params) {
   $substitutions = pet_substitutions($pet, $params);
   $params['subject'] = token_replace($pet->subject, $substitutions);
   $params['body'] = token_replace($pet->mail_body, $substitutions);
+  
+  // Provided for Mime Mail module; alternate text-only form for multipart MIME
+  $mail_body_plain = trim($pet->mail_body_plain);
+  if (!empty($mail_body_plain)) {
+    flog_it('plaintext set');
+    $params['plaintext'] = token_replace($pet->mail_body_plain, $substitutions);
+  }
+  
+  // Provided for Mime Mail module; send ONLY plain text
+  $params['plain'] = $pet->send_plain;
   
   $message = drupal_mail('pet', $pet->name, $params['pet_to'], language_default(), $params, $params['pet_from']);
   if ($message['result']) {

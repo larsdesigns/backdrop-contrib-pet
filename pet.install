@@ -58,6 +58,19 @@ function pet_schema() {
         'size' => 'big',
         'description' => 'The template body.',
       ),
+      'mail_body_plain' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'size' => 'big',
+        'description' => 'The template body in plain text form.',
+      ),
+      'send_plain' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0x00,
+        'size' => 'tiny',
+        'description' => 'If true send email as plain text.',
+      ),
       'recipient_callback' => array(
         'type' => 'varchar',
         'length' => '255',

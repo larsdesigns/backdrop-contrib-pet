@@ -49,11 +49,34 @@ function pet_form($form, &$form_state, $pet, $op = 'edit') {
     '#default_value' => $pet->mail_body,
     '#description' => t('The body of the email template. May include tokens of any token type specified below.'),
   );
+  $form['mimemail'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Mime Mail options'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  if (module_exists('mimemail')) {
+    $form['mimemail']['mail_body_plain'] = array(
+      '#type' => 'textarea',
+      '#title' => t('Plain text body'),
+      '#default_value' => $pet->mail_body_plain,
+      '#description' => t('The plain text body of the email template. May include tokens of any token type specified below. If left empty Mime Mail will use <a href="@url">drupal_html_to_text()</a> to create a plain text version of the email.', array('@url' => 'http://api.drupal.org/api/drupal/includes%21mail.inc/function/drupal_html_to_text/7')),
+    );
+    $form['mimemail']['send_plain'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Send only plain text'),
+      '#default_value' => $pet->send_plain,
+      '#description' => t('Send email as plain text only. If checked, only the plain text here will be sent. If unchecked both will be sent as multipart mime.'),
+    );
+  }
+  else {
+    $form['mimemail']['#description'] = t('HTML email support is most easily provided by the <a href="@url">Mime Mail</a> module, which must be installed and enabled.', array('@url' => 'http://drupal.org/project/mimemail'));
+  }
   $form['advanced'] = array(
     '#type' => 'fieldset',
     '#title' => t('Additional options'),
     '#collapsible' => TRUE,
-    '#collapsed' => FALSE,
+    '#collapsed' => TRUE,
     '#access' => user_access('administer previewable email templates'),
   );
   $form['advanced']['from_override'] = array(
@@ -188,10 +211,24 @@ function pet_user_form($form, &$form_state, $pet) {
         '#type' => 'textarea',
         '#title' => t('Body'),
         '#default_value' => pet_isset_or($form_state['storage']['mail_body']) ? $form_state['storage']['mail_body'] : $pet->mail_body,
-        '#required' => TRUE,
         '#rows' => 15,
-        '#description' => t('Review and edit template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/structure/pets/manage/' . $pet->name))),
+        '#description' => t('Review and edit standard template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/structure/pets/manage/' . $pet->name))),
       );
+      if (module_exists('mimemail')) {
+        $form['mimemail'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('Plain text body'),
+          '#collapsible' => TRUE,
+          '#collapsed' => TRUE,
+        );
+        $form['mimemail']['mail_body_plain'] = array(
+          '#type' => 'textarea',
+          '#title' => t('Plain text body'),
+          '#default_value' => pet_isset_or($form_state['storage']['mail_body_plain']) ? $form_state['storage']['mail_body_plain'] : $pet->mail_body_plain,
+          '#rows' => 15,
+          '#description' => t('Review and edit plain text template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/structure/pets/manage/' . $pet->name))),
+        );
+      }
       $form['tokens'] = pet_token_help();
       $form['preview'] = array(
         '#type' => 'submit',
@@ -235,23 +272,35 @@ function pet_user_form($form, &$form_state, $pet) {
         '#value' => $form_state['storage']['subject_preview'],
         '#disabled' => TRUE,
       );
-      $form['mail_body'] = array(
-        '#type' => 'textarea',
-        '#title' => t('Body'),
-        '#rows' => 15,
-        '#value' => $form_state['storage']['body_preview'],
-        '#disabled' => TRUE,
-      );
-      $form['body_label'] = array(
-        '#prefix' => '<div class="pet_body_label">',
-        '#suffix' => '</div>',
-        '#markup' => '<label>' . t('Body markup') . '</label>',
-      );
-      $form['body_preview'] = array(
-        '#prefix' => '<div class="pet_body_preview">',
-        '#suffix' => '</div>',
-        '#markup' => $form_state['storage']['body_preview'],
-      );
+      if (!$pet->send_plain) {
+        $form['mail_body'] = array(
+          '#type' => 'textarea',
+          '#title' => t('Body'),
+          '#rows' => 15,
+          '#value' => $form_state['storage']['body_preview'],
+          '#disabled' => TRUE,
+        );
+        $form['body_label'] = array(
+          '#prefix' => '<div class="pet_body_label">',
+          '#suffix' => '</div>',
+          '#markup' => '<label>' . t('Body markup') . '</label>',
+        );
+        $form['body_preview'] = array(
+          '#prefix' => '<div class="pet_body_preview">',
+          '#suffix' => '</div>',
+          '#markup' => $form_state['storage']['body_preview'],
+        );
+      }
+      $plain_text = trim($form_state['storage']['body_preview_plain']);
+      if ($pet->send_plain || !empty($plain_text)) {
+        $form['mail_body_plain'] = array(
+          '#type' => 'textarea',
+          '#title' => t('Plain text body'),
+          '#rows' => 15,
+          '#value' => $form_state['storage']['body_preview_plain'],
+          '#disabled' => TRUE,
+        );
+      }
       $form['back'] = array(
         '#type' => 'submit',
         '#value' => t('Back'),
@@ -313,6 +362,7 @@ function pet_user_form_submit($form, &$form_state) {
       $form_state['storage']['recipients_raw'] = $form_state['values']['recipients'];
       $form_state['storage']['subject'] = $form_state['values']['subject'];
       $form_state['storage']['mail_body'] = $form_state['values']['mail_body'];
+      $form_state['storage']['mail_body_plain'] = $form_state['values']['mail_body_plain'];
       $form_state['storage']['cc'] = $form_state['values']['cc'];
       $form_state['storage']['bcc'] = $form_state['values']['bcc'];
       pet_make_preview($form_state);
@@ -322,13 +372,16 @@ function pet_user_form_submit($form, &$form_state) {
       $form_state['rebuild'] = TRUE;
       $name = $form_state['storage']['pet']->name;
       $recipients = $form_state['storage']['recipients'];
-      $nid = $form_state['storage']['nid'];
-      $subject = $form_state['storage']['subject'];
-      $body = $form_state['storage']['mail_body'];
-      $from = NULL;  // use PET or default setting
-      $cc = $form_state['storage']['cc'];
-      $bcc = $form_state['storage']['bcc'];
-      pet_send_mail($name, $recipients, $nid, $subject, $body, $from, $cc, $bcc);
+      $options = array(
+        'nid' => $form_state['storage']['nid'],
+        'subject' => $form_state['storage']['subject'],
+        'body' => $form_state['storage']['mail_body'],
+        'body_plain' => $form_state['storage']['mail_body_plain'],
+        'from' => NULL,
+        'cc' => $form_state['storage']['cc'],
+        'bcc' => $form_state['storage']['bcc'],
+      );
+      pet_send_mail($name, $recipients, $options);
       break;
   }
   
@@ -380,6 +433,7 @@ function pet_make_preview(&$form_state) {
   
   $form_state['storage']['subject_preview'] = token_replace($form_state['values']['subject'], $subs);
   $form_state['storage']['body_preview'] = token_replace($form_state['values']['mail_body'], $subs);
+  $form_state['storage']['body_preview_plain'] = token_replace($form_state['values']['mail_body_plain'], $subs);
 }
 
 /**
