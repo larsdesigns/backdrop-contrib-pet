@@ -27,13 +27,13 @@ PET supports the MimeMail module for HTML emails.
 Required Modules
 ================
 
-- Entity API http://drupal.org/project/entity
+- Entity API
 
 Optional Modules
 ================
 
-- Rules http://drupal.org/project/rules
-- MimeMail http://drupal.org/project/mimemail
+- Rules
+- MimeMail
 
 Installation
 ============
