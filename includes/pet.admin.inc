@@ -2,11 +2,11 @@
 
 /**
  * @file
- * Contains administrative pages for creating, editing, and deleting previewable email templates (PETs).
+ * Contains pages for creating, editing, and deleting previewable email templates (PETs).
  */
 
 /**
- * Generates the model type editing form.
+ * Generate the PET editing form.
  */
 function pet_form($form, &$form_state, $pet, $op = 'edit') {
   if ($op == 'clone') {
@@ -55,7 +55,7 @@ function pet_form($form, &$form_state, $pet, $op = 'edit') {
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
-  if (module_exists('mimemail')) {
+  if (pet_has_mimemail()) {
     $form['mimemail']['mail_body_plain'] = array(
       '#type' => 'textarea',
       '#title' => t('Plain text body'),
@@ -137,7 +137,7 @@ function pet_form_submit(&$form, &$form_state) {
 }
 
 /**
- * Multi-step PET form.
+ * Multi-step form for previewing and sending a PET.
  */
 function pet_user_form($form, &$form_state, $pet) {  
   $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
@@ -204,27 +204,33 @@ function pet_user_form($form, &$form_state, $pet) {
         '#type' => 'textfield',
         '#title' => t('Subject'),
         '#maxlength' => 255,
-        '#default_value' => pet_isset_or($form_state['storage']['subject']) ? $form_state['storage']['subject'] : $pet->subject,
+        '#default_value' => pet_isset_or($form_state['storage']['subject']) ? 
+          $form_state['storage']['subject'] : 
+          $pet->subject,
         '#required' => TRUE,
       );
-      $form['mail_body'] = array(
-        '#type' => 'textarea',
-        '#title' => t('Body'),
-        '#default_value' => pet_isset_or($form_state['storage']['mail_body']) ? $form_state['storage']['mail_body'] : $pet->mail_body,
-        '#rows' => 15,
-        '#description' => t('Review and edit standard template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/structure/pets/manage/' . $pet->name))),
-      );
-      if (module_exists('mimemail')) {
+      if (!(pet_has_mimemail() && $pet->send_plain)) {
+        $form['mail_body'] = array(
+          '#type' => 'textarea',
+          '#title' => t('Body'),
+          '#default_value' => pet_isset_or($form_state['storage']['mail_body']) ? $form_state['storage']['mail_body'] : $pet->mail_body,
+          '#rows' => 15,
+          '#description' => t('Review and edit standard template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/structure/pets/manage/' . $pet->name))),
+        );
+      }
+      if (pet_has_mimemail()) {
         $form['mimemail'] = array(
           '#type' => 'fieldset',
           '#title' => t('Plain text body'),
           '#collapsible' => TRUE,
-          '#collapsed' => TRUE,
+          '#collapsed' => !(pet_has_mimemail() && $pet->send_plain),
         );
         $form['mimemail']['mail_body_plain'] = array(
           '#type' => 'textarea',
           '#title' => t('Plain text body'),
-          '#default_value' => pet_isset_or($form_state['storage']['mail_body_plain']) ? $form_state['storage']['mail_body_plain'] : $pet->mail_body_plain,
+          '#default_value' => isset($form_state['storage']['mail_body_plain']) ? 
+            $form_state['storage']['mail_body_plain'] : 
+            $pet->mail_body_plain,
           '#rows' => 15,
           '#description' => t('Review and edit plain text template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/structure/pets/manage/' . $pet->name))),
         );
@@ -272,7 +278,17 @@ function pet_user_form($form, &$form_state, $pet) {
         '#value' => $form_state['storage']['subject_preview'],
         '#disabled' => TRUE,
       );
-      if (!$pet->send_plain) {
+      if (!pet_has_mimemail() || !$pet->send_plain) {
+        $form['body_label'] = array(
+          '#prefix' => '<div class="pet_body_label">',
+          '#suffix' => '</div>',
+          '#markup' => '<label>' . t('Body as HTML') . '</label>',
+        );
+        $form['body_preview'] = array(
+          '#prefix' => '<div class="pet_body_preview">',
+          '#suffix' => '</div>',
+          '#markup' => $form_state['storage']['body_preview'],
+        );
         $form['mail_body'] = array(
           '#type' => 'textarea',
           '#title' => t('Body'),
@@ -280,19 +296,9 @@ function pet_user_form($form, &$form_state, $pet) {
           '#value' => $form_state['storage']['body_preview'],
           '#disabled' => TRUE,
         );
-        $form['body_label'] = array(
-          '#prefix' => '<div class="pet_body_label">',
-          '#suffix' => '</div>',
-          '#markup' => '<label>' . t('Body markup') . '</label>',
-        );
-        $form['body_preview'] = array(
-          '#prefix' => '<div class="pet_body_preview">',
-          '#suffix' => '</div>',
-          '#markup' => $form_state['storage']['body_preview'],
-        );
       }
       $plain_text = trim($form_state['storage']['body_preview_plain']);
-      if ($pet->send_plain || !empty($plain_text)) {
+      if (pet_has_mimemail() && ($pet->send_plain || !empty($plain_text))) {
         $form['mail_body_plain'] = array(
           '#type' => 'textarea',
           '#title' => t('Plain text body'),
@@ -361,8 +367,8 @@ function pet_user_form_submit($form, &$form_state) {
       $form_state['rebuild'] = TRUE;
       $form_state['storage']['recipients_raw'] = $form_state['values']['recipients'];
       $form_state['storage']['subject'] = $form_state['values']['subject'];
-      $form_state['storage']['mail_body'] = $form_state['values']['mail_body'];
-      $form_state['storage']['mail_body_plain'] = $form_state['values']['mail_body_plain'];
+      $form_state['storage']['mail_body'] = pet_isset_or($form_state['values']['mail_body']);
+      $form_state['storage']['mail_body_plain'] = pet_isset_or($form_state['values']['mail_body_plain']);
       $form_state['storage']['cc'] = $form_state['values']['cc'];
       $form_state['storage']['bcc'] = $form_state['values']['bcc'];
       pet_make_preview($form_state);
@@ -432,8 +438,8 @@ function pet_make_preview(&$form_state) {
   $subs = pet_substitutions($form_state['storage']['pet'], $params);
   
   $form_state['storage']['subject_preview'] = token_replace($form_state['values']['subject'], $subs);
-  $form_state['storage']['body_preview'] = token_replace($form_state['values']['mail_body'], $subs);
-  $form_state['storage']['body_preview_plain'] = token_replace($form_state['values']['mail_body_plain'], $subs);
+  $form_state['storage']['body_preview'] = token_replace(pet_isset_or($form_state['values']['mail_body']), $subs);
+  $form_state['storage']['body_preview_plain'] = token_replace(pet_isset_or($form_state['values']['mail_body_plain']), $subs);
 }
 
 /**
@@ -509,8 +515,8 @@ function pet_recipients_formatted($recipients) {
   $output = '';
   if (is_array($recipients)) {
     foreach ($recipients as $recipient) {
-      $output .= $recipient['mail'];
-      $output .= $recipient['uid'] ? t(' (user @uid)', array('@uid' => $recipient['uid'])) : t(' (no user id)');
+      $output .= $recipient['mail'] . ' ';
+      $output .= $recipient['uid'] ? t('(user @uid)', array('@uid' => $recipient['uid'])) : t('(no user id)');
       $output .= "\n";
     }
     return $output;
