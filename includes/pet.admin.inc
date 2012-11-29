@@ -139,7 +139,12 @@ function pet_form_submit(&$form, &$form_state) {
 /**
  * Multi-step form for previewing and sending a PET.
  */
-function pet_user_form($form, &$form_state, $pet) {  
+function pet_user_form($form, &$form_state, $pet) {
+  if (pet_isset_or($form_state['storage']['step']) == 3) {
+    drupal_set_message(t('Email(s) sent'));
+    unset($form_state['storage']);    
+  }
+  
   $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
   $form_state['storage']['step'] = $step;
   $form_state['storage']['pet'] = $pet;
@@ -316,11 +321,6 @@ function pet_user_form($form, &$form_state, $pet) {
         '#type' => 'submit',
         '#value' => t('Send email(s)'),
       );
-      break;
-
-    case 3:
-      drupal_set_message(t('Email(s) sent'));
-      unset($form_state['storage']);
       break;
   }
   
@@ -536,13 +536,6 @@ function pet_is_natural($val, $base = 1) {
     $return = FALSE;
   }
   return $return;
-}
-
-/**
- * Check if a variable is set and return it if so, otherwise the alternative.
- */
-function pet_isset_or(&$val, $alternate = NULL) {
-  return isset($val) ? $val : $alternate;
 }
 
 /**
