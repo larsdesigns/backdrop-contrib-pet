@@ -377,3 +377,10 @@ function pet_is_valid($pet) {
 function pet_has_mimemail() {
   return module_exists('mimemail');
 }
+
+/**
+ * Check if a variable is set and return it if so, otherwise the alternative.
+ */
+function pet_isset_or(&$val, $alternate = NULL) {
+  return isset($val) ? $val : $alternate;
+}
