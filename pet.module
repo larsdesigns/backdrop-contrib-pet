@@ -319,6 +319,8 @@ function pet_send_one_mail($pet, $params) {
   if ($message['result']) {
     watchdog('pet', 'Successfully sent email to %recipient', array('%recipient' => $params['pet_to']));
   }
+  // return message, useful for show custom message, based email send status
+  return $message;
 }
 
 /**
