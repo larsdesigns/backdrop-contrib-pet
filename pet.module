@@ -71,13 +71,13 @@ function pet_access($op, $type = NULL, $account = NULL) {
 /**
  * Implements hook_permission().
  */
-function pet_permission() {  
+function pet_permission() {
   $permissions = array(
-    'administer previewable email templates' =>  array(
+    'administer previewable email templates' => array(
       'title' => t('Administer previewable email templates'),
       'description' => t('Create, edit and delete previewable email templates.'),
     ),
-    'use previewable email templates' =>  array(
+    'use previewable email templates' => array(
       'title' => t('Use previewable email templates'),
       'description' => t('Use previewable email templates.'),
     ),
@@ -105,12 +105,14 @@ class PET extends Entity {
   public function __construct($values = array()) {
     parent::__construct($values, 'pet');
   }
+
 }
 
 /**
  * PET UI controller.
  */
 class PETUIController extends EntityDefaultUIController {
+
   /**
    * Overrides hook_menu() defaults.
    */
@@ -119,6 +121,7 @@ class PETUIController extends EntityDefaultUIController {
     $items[$this->path]['description'] = 'Create previewable email templates with token and rules support.';
     return $items;
   }
+
 }
 
 /**
@@ -221,12 +224,12 @@ function pet_send_mail($name, $recipients, $options) {
     watchdog('pet', 'At least one recipient must be provided for PET %name.', array('%name' => $name), WATCHDOG_NOTICE);
     return;
   }
-    
+
   // Override subject and body if necessary
   $pet->subject = isset($options['subject']) ? $options['subject'] : $pet->subject;
   $pet->mail_body = isset($options['body']) ? $options['body'] : $pet->mail_body;
   $pet->mail_body_plain = isset($options['body_plain']) ? $options['body_plain'] : $pet->mail_body_plain;
-  
+
   // Resolve from address
   if (pet_isset_or($options['from'])) {
     $from = $options['from'];
@@ -237,7 +240,7 @@ function pet_send_mail($name, $recipients, $options) {
   else {
     $from = variable_get('site_mail', ini_get('sendmail_from'));
   }
-  
+
   // Store data in params in case a module wants to act on them somehow
   $params = array(
     'pet_from' => $from,
@@ -246,7 +249,8 @@ function pet_send_mail($name, $recipients, $options) {
     'pet_cc' => pet_parse_mails(pet_isset_or($options['cc'])),
     'pet_bcc' => pet_parse_mails(pet_isset_or($options['bcc'])),
   );
-  
+  // array to hold status of messages send
+  $message_status = array();
   foreach ($recipients as $recipient) {
     if (is_array($recipient)) {
       $params['pet_to'] = $recipient['mail'];
@@ -258,8 +262,10 @@ function pet_send_mail($name, $recipients, $options) {
       $params['pet_to'] = $mail;
       $params['pet_uid'] = pet_lookup_uid($mail);
     }
-    pet_send_one_mail($pet, $params);
+    $message_status[$params['pet_to']] = pet_send_one_mail($pet, $params);
   }
+  // return message status
+  return $message_status;
 }
 
 /**
@@ -305,18 +311,18 @@ function pet_send_one_mail($pet, $params) {
   $substitutions = pet_substitutions($pet, $params);
   $params['subject'] = token_replace($pet->subject, $substitutions);
   $params['body'] = token_replace($pet->mail_body, $substitutions);
-  
+
   // Provided for Mime Mail module; alternate text-only form for multipart MIME
   $mail_body_plain = trim($pet->mail_body_plain);
   if (!empty($mail_body_plain)) {
     $params['plaintext'] = token_replace($pet->mail_body_plain, $substitutions);
   }
-  
+
   // Provided for Mime Mail module; send ONLY plain text
   $params['plain'] = $pet->send_plain;
-  
+
   $message = drupal_mail('pet', $pet->name, $params['pet_to'], language_default(), $params, $params['pet_from']);
-  if ($message['result']) {
+  if ($message['send']) {
     watchdog('pet', 'Successfully sent email to %recipient', array('%recipient' => $params['pet_to']));
   }
   // return message, useful for show custom message, based email send status
@@ -329,7 +335,7 @@ function pet_send_one_mail($pet, $params) {
 function pet_substitutions($pet, $params) {
   $uid = $params['pet_uid'];
   $nid = $params['pet_nid'];
-  
+
   // Standard substitutions
   $substitutions['global'] = NULL;
   if (!empty($uid)) {
@@ -340,7 +346,7 @@ function pet_substitutions($pet, $params) {
     $node = node_load($nid);
     $substitutions['node'] = $node;
   }
-  
+
   // Give modules the opportunity to add their own token types/objects
   drupal_alter('pet_substitutions', $substitutions, $params);
   return $substitutions;
@@ -355,7 +361,7 @@ function pet_substitutions($pet, $params) {
 function pet_mail($key, &$message, $params) {
   $message['subject'] = $params['subject'];
   $message['body'][] = $params['body'];
-    
+
   if (isset($params['pet_cc']) && is_array($params['pet_cc']) && count($params['pet_cc']) > 0) {
     $message['headers']['Cc'] = implode(',', $params['pet_cc']);
   }
