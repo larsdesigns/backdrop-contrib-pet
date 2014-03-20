@@ -340,8 +340,8 @@ function pet_send_one_mail($pet, $params) {
  * Load the token objects for a PET template in preparation for token substitution.
  */
 function pet_substitutions($pet, $params) {
-  $uid = $params['pet_uid'];
-  $nid = $params['pet_nid'];
+  $uid = pet_isset_or($params['pet_uid']);
+  $nid = pet_isset_or($params['pet_nid']);
 
   // Standard substitutions
   $substitutions['global'] = NULL;
