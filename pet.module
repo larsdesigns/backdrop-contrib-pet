@@ -248,6 +248,7 @@ function pet_send_mail($name, $recipients, $options) {
     'pet_nid' => pet_isset_or($options['nid']),
     'pet_cc' => pet_parse_mails(pet_isset_or($options['cc'])),
     'pet_bcc' => pet_parse_mails(pet_isset_or($options['bcc'])),
+    'pet_options' => $options,
   );
   // array to hold status of messages send
   $message_status = array();
