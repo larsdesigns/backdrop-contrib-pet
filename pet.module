@@ -209,6 +209,7 @@ function pet_lookup_uid($mail) {
  *        override the plain text body in the PET.
  *      from - An optional from email which if provided which will override the
  *        from in the PET (which in turn overrides the site default).
+ *      reply_to - Optional
  *      cc - Optional cc emails which if provided which will override the cc's
  *        in the PET.
  *      bcc - Optional bcc emails which if provided which will override the
@@ -248,6 +249,7 @@ function pet_send_mail($name, $recipients, $options) {
     'pet_nid' => pet_isset_or($options['nid']),
     'pet_cc' => pet_parse_mails(pet_isset_or($options['cc'])),
     'pet_bcc' => pet_parse_mails(pet_isset_or($options['bcc'])),
+    'pet_reply_to' => pet_isset_or($options['reply_to']),
     'pet_options' => $options,
   );
   // array to hold status of messages send
@@ -287,6 +289,7 @@ function pet_send_mail($name, $recipients, $options) {
  *        substitution
  *      pet_nid (optional) - if provided, a valid node id for 'node' type token
  *        substitution
+ *      pet_reply_to (optional)
  *   The $params array may also contain data passed in by other modules. One
  *    use of this is for token substitution.
  *
@@ -306,6 +309,9 @@ function pet_send_one_mail($pet, $params) {
   if (empty($params['pet_to'])) {
     watchdog('pet', 'Missing recipient email address in pet_send_one_mail() for PET \'%name\'.', array('%name' => $pet->name), WATCHDOG_ERROR);
     return;
+  }
+  if (isset($params['pet_reply_to'])) {
+    $message['headers']['Reply-To'] = $params['pet_reply_to'];
   }
 
   $params['pet'] = $pet;
