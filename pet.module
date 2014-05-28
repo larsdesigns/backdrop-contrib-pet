@@ -316,13 +316,13 @@ function pet_send_one_mail($pet, $params) {
 
   $params['pet'] = $pet;
   $substitutions = pet_substitutions($pet, $params);
-  $params['subject'] = token_replace($pet->subject, $substitutions);
-  $params['body'] = token_replace($pet->mail_body, $substitutions);
+  $params['subject'] = token_replace($pet->subject, $substitutions, array('clear' => TRUE));
+  $params['body'] = token_replace($pet->mail_body, $substitutions, array('clear' => TRUE));
 
   // Provided for Mime Mail module; alternate text-only form for multipart MIME
   $mail_body_plain = trim($pet->mail_body_plain);
   if (!empty($mail_body_plain)) {
-    $params['plaintext'] = token_replace($pet->mail_body_plain, $substitutions);
+    $params['plaintext'] = token_replace($pet->mail_body_plain, $substitutions, array('clear' => TRUE));
   }
 
   // Provided for Mime Mail module; send ONLY plain text
