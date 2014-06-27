@@ -559,18 +559,18 @@ function pet_validate_emails($mail_text) {
 function pet_settings($form, $form_state) {
   $form['logging'] = array(
     '#type' => 'fieldset',
-    '#title' => t('PET Logging settings'),
+    '#title' => t('PET log settings'),
     '#collapsible' => FALSE,
   );
 
   $options = array(
-    0 => t('Log everthing.'),
+    0 => t('Log everything.'),
     1 => t('Log errors only.'),
     2 => t('No logging, display error on screen, useful for debugging.'),
   );
   $form['logging']['pet_logging'] = array(
     '#type' => 'radios',
-    '#title' => t('Service password'),
+    '#title' => t('Log setting'),
     '#options' => $options,
     '#default_value' => variable_get('pet_logging', 0),
   );

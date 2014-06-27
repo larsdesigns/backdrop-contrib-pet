@@ -35,7 +35,6 @@ function pet_menu() {
     'page arguments' => array('pet_settings'),
     'file' => 'pet.admin.inc',
     'file path' => $path,
-      //'type' => MENU_CALLBACK,
   );
   return $items;
 }
