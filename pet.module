@@ -21,7 +21,22 @@ function pet_menu() {
     'file path' => $path,
     'type' => MENU_CALLBACK,
   );
-
+  $items['admin/config/system/pet'] = array(
+    'title' => 'Previewable Email Templates',
+    'access arguments' => array('administer previewable email templates'),
+    'page callback' => 'system_admin_menu_block_page',
+    'file' => 'system.admin.inc',
+    'file path' => drupal_get_path('module', 'system'),
+  );
+  $items['admin/config/system/pet/settings'] = array(
+    'title' => 'PET settings',
+    'access arguments' => array('administer previewable email templates'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('pet_settings'),
+    'file' => 'pet.admin.inc',
+    'file path' => $path,
+      //'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
@@ -296,18 +311,35 @@ function pet_send_mail($name, $recipients, $options) {
  * @see hook_pet_substitutions_alter() 
  */
 function pet_send_one_mail($pet, $params) {
+  $pet_logging = variable_get('pet_logging', 0);
+
   if (!pet_is_valid($pet)) {
-    watchdog('pet', 'Invalid PET object in pet_send_one_mail().', array(), WATCHDOG_ERROR);
+    if ($pet_logging < 2) {
+      watchdog('pet', 'Invalid PET object in pet_send_one_mail().', array(), WATCHDOG_ERROR);
+    }
+    else {
+      drupal_set_message(t('Invalid PET object in pet_send_one_mail().'), 'error');
+    }
     return;
   }
 
   if (empty($params['pet_from'])) {
-    watchdog('pet', 'Missing sender email address in pet_send_one_mail() for PET \'%name\'.', array('%name' => $pet->name), WATCHDOG_ERROR);
+    if ($pet_logging < 2) {
+      watchdog('pet', 'Missing sender email address in pet_send_one_mail() for PET \'%name\'.', array('%name' => $pet->name), WATCHDOG_ERROR);
+    }
+    else {
+      drupal_set_message(t('Missing sender email address in pet_send_one_mail() for PET \'%name\'.', array('%name' => $pet->name)), 'error');
+    }
     return;
   }
 
   if (empty($params['pet_to'])) {
-    watchdog('pet', 'Missing recipient email address in pet_send_one_mail() for PET \'%name\'.', array('%name' => $pet->name), WATCHDOG_ERROR);
+    if ($pet_logging < 2) {
+      watchdog('pet', 'Missing recipient email address in pet_send_one_mail() for PET \'%name\'.', array('%name' => $pet->name), WATCHDOG_ERROR);
+    }
+    else {
+      drupal_set_message(t('Missing recipient email address in pet_send_one_mail() for PET \'%name\'.', array('%name' => $pet->name)), 'error');
+    }
     return;
   }
   if (isset($params['pet_reply_to'])) {
@@ -329,7 +361,7 @@ function pet_send_one_mail($pet, $params) {
   $params['plain'] = $pet->send_plain;
 
   $message = drupal_mail('pet', $pet->name, $params['pet_to'], language_default(), $params, $params['pet_from']);
-  if ($message['send']) {
+  if ($message['send'] && $pet_logging == 0) {
     watchdog('pet', 'Successfully sent email to %recipient', array('%recipient' => $params['pet_to']));
   }
   // return message, useful for show custom message, based email send status

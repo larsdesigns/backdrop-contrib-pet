@@ -13,7 +13,7 @@ function pet_form($form, &$form_state, $pet, $op = 'edit') {
     $pet->name .= '_cloned';
     $pet->title .= ' (cloned)';
   }
-  
+
   $form['title'] = array(
     '#type' => 'textfield',
     '#title' => t('Title'),
@@ -142,21 +142,21 @@ function pet_form_submit(&$form, &$form_state) {
 function pet_user_form($form, &$form_state, $pet) {
   if (pet_isset_or($form_state['storage']['step']) == 3) {
     drupal_set_message(t('Email(s) sent'));
-    unset($form_state['storage']);    
+    unset($form_state['storage']);
   }
-  
+
   $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
   $form_state['storage']['step'] = $step;
   $form_state['storage']['pet'] = $pet;
-  
+
   // Get any query args
   $nid = $form_state['storage']['nid'] = pet_is_natural(pet_isset_or($_REQUEST['nid'])) ? $_REQUEST['nid'] : NULL;
   $uid = $form_state['storage']['uid'] = pet_is_natural(pet_isset_or($_REQUEST['uid'])) ? $_REQUEST['uid'] : NULL;
   $recipient_callback = $form_state['storage']['recipient_callback'] = (
-    pet_isset_or($_REQUEST['recipient_callback']) === 'true' || 
-    pet_isset_or($_REQUEST['uid']) === '0' // backward compatibility
-  );
-  
+      pet_isset_or($_REQUEST['recipient_callback']) === 'true' ||
+      pet_isset_or($_REQUEST['uid']) === '0' // backward compatibility
+      );
+
   switch ($step) {
     case 1:
       if ($recipient_callback) {
@@ -209,9 +209,9 @@ function pet_user_form($form, &$form_state, $pet) {
         '#type' => 'textfield',
         '#title' => t('Subject'),
         '#maxlength' => 255,
-        '#default_value' => pet_isset_or($form_state['storage']['subject']) ? 
-          $form_state['storage']['subject'] : 
-          $pet->subject,
+        '#default_value' => pet_isset_or($form_state['storage']['subject']) ?
+            $form_state['storage']['subject'] :
+            $pet->subject,
         '#required' => TRUE,
       );
       if (!(pet_has_mimemail() && $pet->send_plain)) {
@@ -233,9 +233,9 @@ function pet_user_form($form, &$form_state, $pet) {
         $form['mimemail']['mail_body_plain'] = array(
           '#type' => 'textarea',
           '#title' => t('Plain text body'),
-          '#default_value' => isset($form_state['storage']['mail_body_plain']) ? 
-            $form_state['storage']['mail_body_plain'] : 
-            $pet->mail_body_plain,
+          '#default_value' => isset($form_state['storage']['mail_body_plain']) ?
+              $form_state['storage']['mail_body_plain'] :
+              $pet->mail_body_plain,
           '#rows' => 15,
           '#description' => t('Review and edit plain text template before previewing. This will not change the template for future emailings, just for this one. To change the template permanently, go to the <a href="@settings">template page</a>. You may use the tokens below.', array('@settings' => url('admin/structure/pets/manage/' . $pet->name))),
         );
@@ -323,7 +323,7 @@ function pet_user_form($form, &$form_state, $pet) {
       );
       break;
   }
-  
+
   return $form;
 }
 
@@ -342,7 +342,7 @@ function pet_user_form_validate($form, &$form_state) {
       // Save recipients to avoid redundant processing on form submit
       $form_state['storage']['recipients'] = $recipients;
     }
-    
+
     $errors = pet_validate_emails($form_state['values']['cc']);
     if (!empty($errors)) {
       form_set_error('cc', '<ul><li>' . implode('</li><li>', $errors) . '</li></ul>');
@@ -358,10 +358,10 @@ function pet_user_form_validate($form, &$form_state) {
 /**
  * Form submission.  Take action on step 2 (confirmation of the populated templates).
  */
-function pet_user_form_submit($form, &$form_state) {  
+function pet_user_form_submit($form, &$form_state) {
   $step = empty($form_state['storage']['step']) ? 1 : $form_state['storage']['step'];
   $form_state['storage']['step'] = $step;
-  
+
   switch ($step) {
     case 1:
       $form_state['rebuild'] = TRUE;
@@ -373,7 +373,7 @@ function pet_user_form_submit($form, &$form_state) {
       $form_state['storage']['bcc'] = $form_state['values']['bcc'];
       pet_make_preview($form_state);
       break;
-      
+
     case 2:
       $form_state['rebuild'] = TRUE;
       $name = $form_state['storage']['pet']->name;
@@ -390,8 +390,8 @@ function pet_user_form_submit($form, &$form_state) {
       pet_send_mail($name, $recipients, $options);
       break;
   }
-  
-  $form_state['storage']['step']++;
+
+  $form_state['storage']['step'] ++;
 }
 
 /**
@@ -436,7 +436,7 @@ function pet_make_preview(&$form_state) {
     'pet_nid' => $form_state['storage']['nid'],
   );
   $subs = pet_substitutions($form_state['storage']['pet'], $params);
-  
+
   $form_state['storage']['subject_preview'] = token_replace($form_state['values']['subject'], $subs);
   $form_state['storage']['body_preview'] = token_replace(pet_isset_or($form_state['values']['mail_body']), $subs);
   $form_state['storage']['body_preview_plain'] = token_replace(pet_isset_or($form_state['values']['mail_body_plain']), $subs);
@@ -448,7 +448,7 @@ function pet_make_preview(&$form_state) {
 function pet_validate_recipients($form_state, &$recipients) {
   $errors = array();
   $recipients = array();
-  
+
   if ($form_state['storage']['recipient_callback']) {
     // Get recipients from callback
     $mails = pet_callback_recipients($form_state);
@@ -461,7 +461,7 @@ function pet_validate_recipients($form_state, &$recipients) {
     // Get recipients from form field
     $mails = pet_parse_mails($form_state['values']['recipients']);
   }
-  
+
   // Validate and build recipient array with uid on the fly
   foreach ($mails as $mail) {
     if (!valid_email_address($mail)) {
@@ -471,12 +471,12 @@ function pet_validate_recipients($form_state, &$recipients) {
       $recipients[] = array('mail' => $mail, 'uid' => pet_lookup_uid($mail));
     }
   }
-  
+
   // Check for no recipients
   if (empty($errors) && count($recipients) < 1) {
     $errors[] = t('There are no recipients for this email.');
   }
-  
+
   return $errors;
 }
 
@@ -487,12 +487,12 @@ function pet_callback_recipients($form_state) {
   $nid = $form_state['storage']['nid'];
   $pet = $form_state['storage']['pet'];
   $callback = $pet->recipient_callback;
-  $node = empty($nid) ? NULL : node_load($nid); 
-  
+  $node = empty($nid) ? NULL : node_load($nid);
+
   if (!empty($callback)) {
     if (function_exists($callback)) {
       $recipients = $callback($node);
-      
+
       // Remove uid for backward compatibility
       if (isset($recipients) && is_array($recipients)) {
         $new_recipients = array();
@@ -504,7 +504,7 @@ function pet_callback_recipients($form_state) {
       }
     }
   }
-  
+
   return NULL;
 }
 
@@ -531,7 +531,7 @@ function pet_is_natural($val, $base = 1) {
   if (!isset($val)) {
     return FALSE;
   }
-  $return = ((string)$val === (string)(int)$val);
+  $return = ((string) $val === (string) (int) $val);
   if ($return && intval($val) < $base) {
     $return = FALSE;
   }
@@ -543,12 +543,36 @@ function pet_is_natural($val, $base = 1) {
  */
 function pet_validate_emails($mail_text) {
   $errors = array();
-  
+
   foreach (pet_parse_mails($mail_text) as $mail) {
     if (!valid_email_address($mail)) {
       $errors[] = t('Invalid email address found: %mail.', array('%mail' => $mail));
     }
   }
-  
+
   return $errors;
+}
+
+/**
+ * PET setting form
+ */
+function pet_settings($form, $form_state) {
+  $form['logging'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('PET Logging settings'),
+    '#collapsible' => FALSE,
+  );
+
+  $options = array(
+    0 => t('Log everthing.'),
+    1 => t('Log errors only.'),
+    2 => t('No logging, display error on screen, useful for debugging.'),
+  );
+  $form['logging']['pet_logging'] = array(
+    '#type' => 'radios',
+    '#title' => t('Service password'),
+    '#options' => $options,
+    '#default_value' => variable_get('pet_logging', 0),
+  );
+  return system_settings_form($form);
 }
