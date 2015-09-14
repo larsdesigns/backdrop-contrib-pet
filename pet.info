@@ -5,4 +5,5 @@ dependencies[] = entity
 core = 7.x
 version = 7.x-1.x-dev
 package = Mail
+configure = admin/config/system/pet/settings
 stylesheets[all][] = pet.css
